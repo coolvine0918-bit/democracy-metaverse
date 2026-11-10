@@ -441,6 +441,7 @@ io.on('connection', (socket) => {
       io.emit('questProgressUpdated', getQuestProgressSummary());
     }
 
+    const isTeacher = !!player.isAdmin;
     const msgPayload = {
       senderId: player.id,
       className: player.className,
@@ -449,22 +450,33 @@ io.on('connection', (socket) => {
       text,
       cafeId: player.cafeId,
       timestamp: now,
-      hasBadge: player.hasBadge
+      hasBadge: player.hasBadge,
+      isTeacher
     };
 
-    if (player.cafeId !== null) {
+    if (isTeacher) {
+      msgPayload.cafeName = '선생님 공지 📢';
+      // 교사의 채팅은 광장과 모든 소회의실(카페)의 전교생 전체 화면으로 송출!
+      io.emit('chatBroadcast', msgPayload);
+      // [학생 화면 중앙 대형 배너 송출]
+      io.emit('teacherAnnouncement', {
+        text,
+        sender: player.nickname,
+        timestamp: now
+      });
+    } else if (player.cafeId !== null) {
       const targetCafe = MAP_CONFIG.cafes.find(c => c.id === player.cafeId);
       msgPayload.cafeName = targetCafe ? targetCafe.name : '카페';
       
       for (const [id, p] of players.entries()) {
-        if (p.cafeId === player.cafeId) {
+        if (p.cafeId === player.cafeId || p.isAdmin) {
           io.to(id).emit('chatBroadcast', msgPayload);
         }
       }
     } else {
       msgPayload.cafeName = '중앙 광장';
       for (const [id, p] of players.entries()) {
-        if (p.cafeId === null) {
+        if (p.cafeId === null || p.isAdmin) {
           io.to(id).emit('chatBroadcast', msgPayload);
         }
       }

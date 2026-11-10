@@ -460,6 +460,116 @@ html, body {
   color: #94a3b8;
 }
 
+/* ================= 대형 교사 채팅/말씀 팝업 배너 ================= */
+.teacher-big-banner {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.82);
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 250;
+  padding: 20px;
+  animation: zoomBanner 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  cursor: pointer;
+}
+
+.teacher-banner-card {
+  background: linear-gradient(145deg, #2e1065, #0f172a);
+  border: 3px solid #fbbf24;
+  border-radius: 28px;
+  padding: 34px 28px;
+  max-width: 640px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.75), 0 0 50px rgba(245, 158, 11, 0.45);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  position: relative;
+}
+
+.teacher-banner-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.teacher-banner-icon {
+  font-size: 3rem;
+  animation: pulseIcon 1.5s infinite;
+}
+
+.teacher-banner-badge {
+  background: linear-gradient(135deg, #7e22ce, #9333ea);
+  border: 1.5px solid #fbbf24;
+  color: #fef08a;
+  padding: 6px 18px;
+  border-radius: 20px;
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.teacher-banner-text {
+  font-size: 1.55rem;
+  font-weight: 800;
+  line-height: 1.45;
+  color: #ffffff;
+  word-break: keep-all;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 20px 24px;
+  border-radius: 18px;
+  border: 1.5px solid rgba(251, 191, 36, 0.4);
+  width: 100%;
+}
+
+.teacher-timer-bar {
+  width: 100%;
+  height: 8px;
+  background: #334155;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+
+.teacher-progress-fill {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+  transition: width 5s linear;
+}
+
+.teacher-timer-desc {
+  font-size: 0.85rem;
+  color: #cbd5e1;
+}
+
+/* 채팅창 내 교사 메시지 강조 스타일 */
+.chat-bubble-row.teacher-chat-row {
+  background: rgba(126, 34, 206, 0.22);
+  border-left: 4px solid #fbbf24;
+  padding: 6px 10px;
+  border-radius: 10px;
+  margin: 4px 0;
+}
+
+.teacher-sender-info {
+  color: #fef08a !important;
+  font-weight: 800 !important;
+}
+
+.teacher-chat-bubble {
+  background: linear-gradient(135deg, #4c1d95, #3b0764) !important;
+  border: 1px solid #fbbf24 !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  font-size: 0.95rem !important;
+}
+
 /* ================= 3. 태블릿 좌측 하단 가상 조이스틱 ================= */
 .joystick-zone {
   position: fixed;

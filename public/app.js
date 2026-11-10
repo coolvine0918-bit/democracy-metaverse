@@ -34,6 +34,11 @@
   const bigAgendaText = document.getElementById('bigAgendaText');
   const agendaProgress = document.getElementById('agendaProgress');
 
+  // 대형 교사 공지 배너
+  const teacherBigBanner = document.getElementById('teacherBigBanner');
+  const teacherBigText = document.getElementById('teacherBigText');
+  const teacherProgress = document.getElementById('teacherProgress');
+
   // 툴 버튼 (퀘스트, 인벤토리, 자료)
   const btnQuestToggle = document.getElementById('btnQuestToggle');
   const questBadgeCount = document.getElementById('questBadgeCount');
@@ -630,6 +635,11 @@
         chatBadge.classList.remove('hidden');
       }
     });
+
+    // [교사 말씀/채팅 전체 대형 배너 수신]
+    socket.on('teacherAnnouncement', (data) => {
+      showBigTeacherBanner(data.text, data.sender || '선생님');
+    });
   }
 
   // --- 5. 물리 엔진 및 미끄러짐 충돌 판정 (Collision Engine) ---
@@ -1107,15 +1117,16 @@
 
   function appendChatMessage(msg) {
     const isMine = msg.senderId === myId;
+    const isTeacher = !!msg.isTeacher;
     const row = document.createElement('div');
-    row.className = `chat-bubble-row ${isMine ? 'mine' : 'other'}`;
+    row.className = `chat-bubble-row ${isMine ? 'mine' : 'other'} ${isTeacher ? 'teacher-chat-row' : ''}`;
 
     const senderInfo = document.createElement('div');
-    senderInfo.className = 'chat-sender-info';
-    senderInfo.textContent = `${msg.hasBadge ? '🏅 ' : ''}${msg.nickname} · ${msg.cafeName || '광장'}`;
+    senderInfo.className = `chat-sender-info ${isTeacher ? 'teacher-sender-info' : ''}`;
+    senderInfo.textContent = `${isTeacher ? '👑 [교사] ' : (msg.hasBadge ? '🏅 ' : '')}${msg.nickname} · ${msg.cafeName || '광장'}`;
 
     const bubble = document.createElement('div');
-    bubble.className = 'chat-bubble';
+    bubble.className = `chat-bubble ${isTeacher ? 'teacher-chat-bubble' : ''}`;
     bubble.textContent = msg.text;
 
     row.appendChild(senderInfo);
@@ -1382,6 +1393,38 @@
   function showPinnedAgenda(text) {
     pinnedAgendaText.textContent = text;
     agendaPinnedBar.classList.remove('hidden');
+  }
+
+  // --- [선생님 말씀 대형 배너 송출] ---
+  let teacherBannerTimer = null;
+  function showBigTeacherBanner(text, sender = '선생님') {
+    if (teacherBannerTimer) clearTimeout(teacherBannerTimer);
+    if (!teacherBigBanner || !teacherBigText) return;
+
+    teacherBigText.textContent = text;
+    teacherBigBanner.classList.remove('hidden');
+
+    playAudio(audioPop, 1.0);
+
+    if (teacherProgress) {
+      teacherProgress.style.transition = 'none';
+      teacherProgress.style.width = '100%';
+      setTimeout(() => {
+        teacherProgress.style.transition = 'width 5s linear';
+        teacherProgress.style.width = '0%';
+      }, 20);
+    }
+
+    teacherBannerTimer = setTimeout(() => {
+      teacherBigBanner.classList.add('hidden');
+    }, 5000);
+  }
+
+  if (teacherBigBanner) {
+    teacherBigBanner.addEventListener('click', () => {
+      if (teacherBannerTimer) clearTimeout(teacherBannerTimer);
+      teacherBigBanner.classList.add('hidden');
+    });
   }
 
   let toastTimer = null;
