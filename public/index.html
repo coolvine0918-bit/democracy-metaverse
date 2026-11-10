@@ -54,7 +54,7 @@
       </div>
 
       <div class="device-tip">
-        📱 <b>태블릿 조작 팁:</b> 화면 좌측 하단 가상 조이스틱을 밀거나, 가고 싶은 곳을 <b>터치</b>하면 이동합니다.
+        📱 <b>태블릿 조작 팁:</b> 좌측 하단 가상 조이스틱을 밀거나 화면을 <b>터치</b>해 이동하세요. 건물과 분수대 벽은 통과할 수 없습니다!
       </div>
 
       <button id="btnEnterPlaza" class="btn-primary-large">광장 입장하기 🚀</button>
@@ -64,16 +64,34 @@
   <!-- 메인 2D 게임 캔버스 -->
   <canvas id="gameCanvas"></canvas>
 
-  <!-- 상단 상태 & 안건 표시 영역 -->
+  <!-- 상단 상태 & 안건 & 퀵 액션 표시 영역 -->
   <div id="topBarContainer">
-    <!-- 현재 위치 및 구역 정보 뱃지 -->
-    <div id="locationBadge" class="location-badge">
-      <span class="loc-icon">🏛️</span>
-      <span id="locText">중앙 광장 (민주 아고라)</span>
-      <span id="locCapacityBadge" class="capacity-tag hidden">0/4</span>
+    <div class="top-left-group">
+      <!-- 현재 위치 뱃지 -->
+      <div id="locationBadge" class="location-badge">
+        <span class="loc-icon">🏛️</span>
+        <span id="locText">중앙 광장 (민주 아고라)</span>
+        <span id="locCapacityBadge" class="capacity-tag hidden">0/4</span>
+      </div>
+
+      <!-- 퀘스트 북 버튼 -->
+      <button id="btnQuestToggle" class="top-tool-btn btn-quest" title="민주시민 퀘스트북">
+        <span>📜</span> <b>미션</b>
+        <span id="questBadgeCount" class="quest-pill">0/4</span>
+      </button>
+
+      <!-- 인벤토리 가방 버튼 -->
+      <button id="btnInventoryToggle" class="top-tool-btn btn-inventory" title="인벤토리 가방">
+        <span>🎒</span> <b>가방</b>
+      </button>
+
+      <!-- 자치 게시판 바로가기 버튼 -->
+      <button id="btnBoardToggle" class="top-tool-btn btn-board" title="마을 자치 게시판 자료">
+        <span>📋</span> <b>자료</b>
+      </button>
     </div>
 
-    <!-- 고정 안건 바 (배너가 5초 후 축소되어 고정됨) -->
+    <!-- 고정 안건 바 -->
     <div id="agendaPinnedBar" class="agenda-pinned hidden">
       <span class="agenda-tag">📢 심의 안건</span>
       <span id="pinnedAgendaText" class="agenda-content">안건이 아직 상정되지 않았습니다.</span>
@@ -104,6 +122,16 @@
       <div id="joystickKnob" class="joystick-knob"></div>
     </div>
     <span class="joystick-guide">이동 조이스틱</span>
+  </div>
+
+  <!-- 투표함 근접 상호작용 플로팅 버튼 (광장 투표함 근처에서 자동 노출) -->
+  <div id="ballotBoxActionZone" class="ballot-action-zone hidden">
+    <button id="btnBallotQuickVoteAgree" class="btn-box-vote btn-box-agree">
+      🗳️ <b>찬성표 투입</b> (📜)
+    </button>
+    <button id="btnBallotQuickVoteDisagree" class="btn-box-vote btn-box-disagree">
+      🗳️ <b>반대표 투입</b> (📜)
+    </button>
   </div>
 
   <!-- 화면 하단 태블릿 맞춤형 대형 액션 버튼 바 -->
@@ -165,21 +193,162 @@
     </form>
   </div>
 
+  <!-- ================= 2. 🎒 인벤토리 모달 (아이템 & 투표용지 드래그) ================= -->
+  <div id="inventoryModal" class="modal-overlay hidden">
+    <div class="custom-dialog-card inventory-card">
+      <div class="dialog-header">
+        <h3>🎒 시민 인벤토리 가방</h3>
+        <button id="btnCloseInventory" class="btn-close-drawer">✕</button>
+      </div>
+      <div class="inventory-tip">
+        💡 <b>투표 방법:</b> 투표용지(📜)를 손가락으로 눌러 광장의 <b>[투표함 🗳️]</b>으로 드래그하거나, 투표함 근처에서 '투입' 버튼을 누르세요.
+      </div>
+      <div id="inventorySlots" class="inventory-grid">
+        <!-- JS로 아이템 슬롯 렌더링 -->
+      </div>
+    </div>
+  </div>
+
+  <!-- 드래그 중인 아이템 고스트 엘리먼트 -->
+  <div id="dragItemGhost" class="drag-ghost hidden">
+    <span id="ghostIcon">📜</span>
+    <span id="ghostName">투표용지</span>
+  </div>
+
+  <!-- ================= 3. 📜 퀘스트 및 미션 시스템 모달 ================= -->
+  <div id="questModal" class="modal-overlay hidden">
+    <div class="custom-dialog-card quest-card">
+      <div class="dialog-header">
+        <div>
+          <h3>📜 민주 시민 양성 퀘스트북</h3>
+          <small>4개 미션을 모두 완수하면 <b>[🏅 성숙한 민주시민 배지]</b>를 획득합니다!</small>
+        </div>
+        <button id="btnCloseQuest" class="btn-close-drawer">✕</button>
+      </div>
+
+      <div class="quest-progress-box">
+        <div class="quest-progress-label">
+          <span>전체 미션 진행도</span>
+          <span id="questProgressPercentText">0/4 (0%)</span>
+        </div>
+        <div class="quest-progress-bar">
+          <div id="questProgressBarFill" class="quest-bar-fill" style="width: 0%;"></div>
+        </div>
+      </div>
+
+      <div class="quest-list">
+        <!-- 미션 1 -->
+        <div id="questItem1" class="quest-item">
+          <div class="quest-status-icon">⬜</div>
+          <div class="quest-item-body">
+            <h4>미션 1: [안건 확인 및 쟁점 파악]</h4>
+            <p>교사 관리자가 송출한 오늘의 마을 조례 안건을 꼼꼼히 확인하세요.</p>
+          </div>
+          <button id="btnQuestAction1" class="btn-quest-do">확인하기</button>
+        </div>
+
+        <!-- 미션 2 -->
+        <div id="questItem2" class="quest-item">
+          <div class="quest-status-icon">⬜</div>
+          <div class="quest-item-body">
+            <h4>미션 2: [마을 자치 게시판 자료 조사]</h4>
+            <p>광장 서쪽에 있는 <b>[마을 자치 게시판 📋]</b>을 터치하여 찬반 근거를 읽으세요.</p>
+          </div>
+          <button id="btnQuestAction2" class="btn-quest-do">자료 열람</button>
+        </div>
+
+        <!-- 미션 3 -->
+        <div id="questItem3" class="quest-item">
+          <div class="quest-status-icon">⬜</div>
+          <div class="quest-item-body">
+            <h4>미션 3: [소회의실 카페 심층 토론]</h4>
+            <p>7개 카페 중 하나에 입장하여 친구들과 채팅으로 <b>2회 이상</b> 의견을 나누세요.</p>
+          </div>
+          <span id="questTalkCountBadge" class="talk-counter">0/2회</span>
+        </div>
+
+        <!-- 미션 4 -->
+        <div id="questItem4" class="quest-item">
+          <div class="quest-status-icon">⬜</div>
+          <div class="quest-item-body">
+            <h4>미션 4: [광장 비밀투표 참여]</h4>
+            <p>가방(🎒)의 투표용지를 중앙 광장의 <b>[비밀 투표함 🗳️]</b>에 직접 투입하세요.</p>
+          </div>
+          <span id="questVoteBadge" class="quest-sub-badge">투표 대기</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 4. 📋 마을 자치 게시판 자료 모달 ================= -->
+  <div id="noticeBoardModal" class="modal-overlay hidden">
+    <div class="custom-dialog-card board-card">
+      <div class="dialog-header">
+        <div>
+          <h3>📋 마을 자치 학습 자료 게시판</h3>
+          <small>안건의 주요 쟁점과 찬반 핵심 근거</small>
+        </div>
+        <button id="btnCloseBoard" class="btn-close-drawer">✕</button>
+      </div>
+
+      <div class="board-body">
+        <h4 id="boardTopicTitle">안건 쟁점 분석</h4>
+        <div id="boardTopicContent" class="board-content-box">
+          자료를 불러오는 중입니다...
+        </div>
+      </div>
+
+      <button id="btnConfirmBoardRead" class="btn-primary-large" style="height: 48px; margin-top: 14px;">
+        자료 조사 완료 (미션 2 달성) ✨
+      </button>
+    </div>
+  </div>
+
+  <!-- ================= 5. 👥 학생 아바타 터치 시 MMO 상호작용 팝업 ================= -->
+  <div id="playerInteractMenu" class="interact-menu hidden">
+    <div class="interact-header">
+      <span id="interactAvatarPreview">👤</span>
+      <div>
+        <h4 id="interactNick">학생 이름</h4>
+        <span id="interactBadgeTag" class="badge-tag">시민 학생</span>
+      </div>
+      <button id="btnCloseInteract" class="btn-close-mini">✕</button>
+    </div>
+    <div class="interact-actions">
+      <button id="btnHighFive" class="btn-interact-act">
+        <span>👋</span> 하이파이브!
+      </button>
+      <button id="btnWhisper" class="btn-interact-act">
+        <span>💬</span> 귓속말 보내기
+      </button>
+    </div>
+  </div>
+
+  <!-- ================= 6. 🏅 민주시민 배지 수여 축하 오버레이 ================= -->
+  <div id="badgeCelebrationOverlay" class="celebration-overlay hidden">
+    <div class="celebration-card">
+      <div class="celebration-badge-icon">🏅</div>
+      <h2>축하합니다!</h2>
+      <h3>성숙한 민주 시민 배지 획득!</h3>
+      <p>모든 안건 조사와 소회의실 토론, 비밀 투표를 모범적으로 완수하여 배지를 수여받았습니다.</p>
+      <button id="btnCloseCelebration" class="btn-primary-large" style="height: 52px; margin-top: 10px;">
+        자랑스러운 배지 달기 ✨
+      </button>
+    </div>
+  </div>
+
   <!-- 시스템 알림 토스트 (정원 초과, 광장 소환 등) -->
   <div id="systemToast" class="system-toast hidden">
     <span id="toastIcon" class="toast-icon">⚠️</span>
     <span id="toastMsg" class="toast-message">알림 메시지</span>
   </div>
 
-  <!-- ================= 교사 관리자(Admin) 패널 ================= -->
-  <!-- URL에 ?admin=true 가 있을 때만 로드 및 활성화 -->
+  <!-- ================= 7. 교사 관리자(Admin) 패널 ================= -->
   <div id="adminContainer" class="admin-container hidden">
-    <!-- 교사 관리자 토글 플로팅 버튼 -->
     <button id="btnAdminToggle" class="btn-admin-toggle">
       👨‍🏫 교사 패널 <span id="adminBadgeCount">0명</span>
     </button>
 
-    <!-- 교사 컨트롤 대시보드 윈도우 -->
     <div id="adminPanel" class="admin-panel closed">
       <div class="admin-header">
         <div>
@@ -194,13 +363,13 @@
         <div class="admin-section">
           <h4>📢 안건 송출 퀵 버튼 (원터치 학생 화면 배너 전송)</h4>
           <div class="quick-agenda-list">
-            <button class="btn-agenda-quick" data-agenda="안건 1: 소년범죄 증가에 따라 '촉법소년' 제도를 완전히 폐지하고 성인과 동일하게 처벌해야 하는가?">
+            <button class="btn-agenda-quick" data-id="1" data-agenda="안건 1: 소년범죄 증가에 따라 '촉법소년' 제도를 완전히 폐지하고 성인과 동일하게 처벌해야 하는가?">
               <b>안건 1</b>: 소년범죄 증가에 따라 '촉법소년' 제도를 완전히 폐지하고 성인과 동일하게 처벌해야 하는가? ⚖️
             </button>
-            <button class="btn-agenda-quick" data-agenda="안건 2: 학생의 집중력 향상을 위해 '교내 스마트폰 반입 및 사용 전면 금지'를 법으로 의무화해야 하는가?">
+            <button class="btn-agenda-quick" data-id="2" data-agenda="안건 2: 학생의 집중력 향상을 위해 '교내 스마트폰 반입 및 사용 전면 금지'를 법으로 의무화해야 하는가?">
               <b>안건 2</b>: 학생의 집중력 향상을 위해 '교내 스마트폰 반입 및 사용 전면 금지'를 법으로 의무화해야 하는가? 📱
             </button>
-            <button class="btn-agenda-quick" data-agenda="안건 3: 영업의 자유인가, 차별인가? 식당과 카페의 '노키즈존(노틴존)' 운영을 법으로 금지해야 하는가?">
+            <button class="btn-agenda-quick" data-id="3" data-agenda="안건 3: 영업의 자유인가, 차별인가? 식당과 카페의 '노키즈존(노틴존)' 운영을 법으로 금지해야 하는가?">
               <b>안건 3</b>: 영업의 자유인가, 차별인가? 식당과 카페의 '노키즈존(노틴존)' 운영을 법으로 금지해야 하는가? 🚫
             </button>
           </div>
@@ -254,7 +423,15 @@
           </div>
         </div>
 
-        <!-- 4. 발언 신청자 대기열 (✋) -->
+        <!-- 4. 학생별 미션 달성 & 배지 수여 현황 모니터링 (신규) -->
+        <div class="admin-section">
+          <h4>🏅 학생별 미션 및 배지 현황 (<span id="adminBadgeAwardCount">0</span>명 배지 획득)</h4>
+          <div id="studentQuestMonitoringList" class="student-quest-list">
+            <!-- JS 동적 렌더링 -->
+          </div>
+        </div>
+
+        <!-- 5. 발언 신청자 대기열 (✋) -->
         <div class="admin-section">
           <h4>✋ 발언 신청 대기열 (<span id="handCount">0</span>명)</h4>
           <div id="speakerQueueList" class="speaker-queue-list">
@@ -262,20 +439,19 @@
           </div>
         </div>
 
-        <!-- 5. 7개 소회의실(카페) 학생 분포 모니터링 -->
+        <!-- 6. 7개 소회의실(카페) 학생 분포 모니터링 -->
         <div class="admin-section">
           <h4>☕ 7개 소회의실(카페) 정원 현황 (최대 4명)</h4>
           <div id="cafeMonitoringGrid" class="cafe-grid">
-            <!-- 자바스크립트로 7개 카페 카드 동적 렌더링 -->
+            <!-- JS 동적 렌더링 -->
           </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Socket.io 클라이언트 스크립트 -->
+  <!-- Socket.io 및 메인 스크립트 -->
   <script src="/socket.io/socket.io.js"></script>
-  <!-- 메인 애플리케이션 스크립트 -->
   <script src="app.js"></script>
 </body>
 </html>
