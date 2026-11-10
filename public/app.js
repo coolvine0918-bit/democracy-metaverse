@@ -324,7 +324,7 @@
     adminPanel.classList.remove('closed'); // 관리자 콘솔 바로 오픈
     isJoined = true;
     startBgm();
-    initSocket('선생님', 99, '교사');
+    initSocket('민부영 선생님', 99, '교사');
     setTimeout(resizeCanvas, 50);
   }
 
@@ -649,7 +649,7 @@
 
     // [교사 말씀/채팅 전체 대형 배너 수신]
     socket.on('teacherAnnouncement', (data) => {
-      showBigTeacherBanner(data.text, data.sender || '선생님');
+      showBigTeacherBanner(data.text, data.sender || '민부영 선생님');
     });
   }
 
@@ -1503,7 +1503,7 @@
 
   // --- [선생님 말씀 대형 배너 송출] ---
   let teacherBannerTimer = null;
-  function showBigTeacherBanner(text, sender = '선생님') {
+  function showBigTeacherBanner(text, sender = '민부영 선생님') {
     if (teacherBannerTimer) clearTimeout(teacherBannerTimer);
     if (!teacherBigBanner || !teacherBigText) return;
 
@@ -2099,17 +2099,22 @@
     }
   }
 
-  // --- [교사 전용 고정 캐릭터 렌더링]: 네이비 정장 수트 + 넥타이 + 출석 태블릿 + 황금 아우라 ---
+  // --- [교사 전용 고정 캐릭터 렌더링]: 학생 대비 2배(2x) 크기 + 네이비 정장 수트 + 넥타이 + 출석 태블릿 + 황금 아우라 ---
   function drawTeacherCharacter(p, isMe) {
     const x = Math.round(p.x);
     const y = Math.round(p.y);
     const bob = p.isMoving ? Math.sin(p.walkCycle) * 3 : 0;
 
+    // 아바타 본체 2배 확대 (Scale 2.0x) 적용
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(2, 2);
+
     // 1. 발 밑 교사용 황금 단상 아우라 링 (Golden Podium Aura)
     ctx.strokeStyle = '#f59e0b';
     ctx.lineWidth = 2.5;
     ctx.beginPath();
-    ctx.ellipse(x, y + 2, 22, 9, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 2, 22, 9, 0, 0, Math.PI * 2);
     ctx.stroke();
     ctx.fillStyle = 'rgba(245, 158, 11, 0.22)';
     ctx.fill();
@@ -2117,82 +2122,85 @@
     // 2. 바닥 그림자
     ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
     ctx.beginPath();
-    ctx.ellipse(x, y + 2, 16, 6, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 2, 16, 6, 0, 0, Math.PI * 2);
     ctx.fill();
 
     // 3. 교사 고정 수트 본체 (클래식 네이비 수트 & 레드 타이)
     ctx.fillStyle = '#1e3a8a'; // 네이비 자켓
-    drawRoundRect(ctx, x - 12, y - 20 + bob, 24, 18, 6);
+    drawRoundRect(ctx, -12, -20 + bob, 24, 18, 6);
     ctx.fill();
 
     // 화이트 셔츠 깃
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
-    ctx.moveTo(x - 5, y - 20 + bob);
-    ctx.lineTo(x + 5, y - 20 + bob);
-    ctx.lineTo(x, y - 13 + bob);
+    ctx.moveTo(-5, -20 + bob);
+    ctx.lineTo(5, -20 + bob);
+    ctx.lineTo(0, -13 + bob);
     ctx.closePath();
     ctx.fill();
 
     // 와인 레드 넥타이
     ctx.fillStyle = '#dc2626';
     ctx.beginPath();
-    ctx.moveTo(x - 2, y - 18 + bob);
-    ctx.lineTo(x + 2, y - 18 + bob);
-    ctx.lineTo(x + 3, y - 9 + bob);
-    ctx.lineTo(x, y - 6 + bob);
-    ctx.lineTo(x - 3, y - 9 + bob);
+    ctx.moveTo(-2, -18 + bob);
+    ctx.lineTo(2, -18 + bob);
+    ctx.lineTo(3, -9 + bob);
+    ctx.lineTo(0, -6 + bob);
+    ctx.lineTo(-3, -9 + bob);
     ctx.closePath();
     ctx.fill();
 
     // 황금 단추
     ctx.fillStyle = '#fbbf24';
     ctx.beginPath();
-    ctx.arc(x, y - 9 + bob, 1.5, 0, Math.PI * 2);
+    ctx.arc(0, -9 + bob, 1.5, 0, Math.PI * 2);
     ctx.fill();
 
     // 손에 든 교사용 출석 태블릿/클립보드 (📋)
     ctx.fillStyle = '#0f172a';
-    drawRoundRect(ctx, x + 9, y - 16 + bob, 8, 12, 2);
+    drawRoundRect(ctx, 9, -16 + bob, 8, 12, 2);
     ctx.fill();
     ctx.fillStyle = '#38bdf8';
-    ctx.fillRect(x + 10, y - 14 + bob, 6, 8);
+    ctx.fillRect(10, -14 + bob, 6, 8);
 
     // 얼굴 피부톤
     ctx.fillStyle = '#fed7aa';
     ctx.beginPath();
-    ctx.arc(x, y - 26 + bob, 10, 0, Math.PI * 2);
+    ctx.arc(0, -26 + bob, 10, 0, Math.PI * 2);
     ctx.fill();
 
     // 단정한 선생님 헤어스타일
     ctx.fillStyle = '#334155';
     ctx.beginPath();
-    ctx.arc(x, y - 29 + bob, 10, Math.PI * 0.9, Math.PI * 2.1);
+    ctx.arc(0, -29 + bob, 10, Math.PI * 0.9, Math.PI * 2.1);
     ctx.fill();
 
     // 지적인 검은 뿔테 안경 👓
     ctx.strokeStyle = '#0f172a';
     ctx.lineWidth = 1.5;
-    ctx.strokeRect(x - 6, y - 28 + bob, 4, 3);
-    ctx.strokeRect(x + 2, y - 28 + bob, 4, 3);
+    ctx.strokeRect(-6, -28 + bob, 4, 3);
+    ctx.strokeRect(2, -28 + bob, 4, 3);
     ctx.beginPath();
-    ctx.moveTo(x - 2, y - 27 + bob);
-    ctx.lineTo(x + 2, y - 27 + bob);
+    ctx.moveTo(-2, -27 + bob);
+    ctx.lineTo(2, -27 + bob);
     ctx.stroke();
 
+    ctx.restore(); // 아바타 2x 스케일 복원
+
     // 4. 머리 위 교사 전용 명찰 (로열 퍼플 & 골드 테두리)
-    const tagText = '👑 [교사] 선생님 🧑‍🏫';
-    ctx.font = 'bold 12px sans-serif';
+    // 2배 확대된 아바타 머리 최상단(y - 78 + bob*2) 위쪽에 명찰 배치
+    const tagText = '👑 [교사] 민부영 선생님 🧑‍🏫';
+    ctx.font = 'bold 13px sans-serif';
     const textWidth = ctx.measureText(tagText).width;
-    const badgeW = textWidth + 18;
-    const badgeH = 22;
-    const badgeY = y - 56 + bob;
+    const badgeW = textWidth + 20;
+    const badgeH = 24;
+    const badgeY = y - 90 + bob * 2;
 
     ctx.fillStyle = 'rgba(88, 28, 135, 0.95)'; // 로열 퍼플
-    drawRoundRect(ctx, x - badgeW / 2, badgeY, badgeW, badgeH, 11);
+    drawRoundRect(ctx, x - badgeW / 2, badgeY, badgeW, badgeH, 12);
     ctx.fill();
     ctx.strokeStyle = '#fbbf24'; // 골드 테두리
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 2.5;
     ctx.stroke();
 
     ctx.fillStyle = '#fef08a';
@@ -2203,37 +2211,37 @@
     // 5. 교사 말풍선 및 상태 이모지
     const emoji = p.statusEmoji;
     if (emoji) {
-      const emojiY = badgeY - 18;
+      const emojiY = badgeY - 22;
       ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
       ctx.beginPath();
-      ctx.arc(x, emojiY + 2, 12, 0, Math.PI * 2);
+      ctx.arc(x, emojiY + 2, 14, 0, Math.PI * 2);
       ctx.fill();
       ctx.strokeStyle = '#334155';
       ctx.lineWidth = 1.5;
       ctx.stroke();
 
-      ctx.font = '14px sans-serif';
+      ctx.font = '16px sans-serif';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(emoji, x, emojiY + 3);
 
       if (emoji === '💬' && p.speechText) {
-        ctx.font = '12px sans-serif';
+        ctx.font = '13px sans-serif';
         const msgW = ctx.measureText(p.speechText).width;
-        const bubbleW = Math.min(240, msgW + 16);
-        const bubbleH = 26;
+        const bubbleW = Math.min(260, msgW + 20);
+        const bubbleH = 28;
         const bX = x - bubbleW / 2;
-        const bY = emojiY - 32;
+        const bY = emojiY - 36;
 
         ctx.fillStyle = '#ffffff';
-        drawRoundRect(ctx, bX, bY, bubbleW, bubbleH, 13);
+        drawRoundRect(ctx, bX, bY, bubbleW, bubbleH, 14);
         ctx.fill();
         ctx.strokeStyle = '#f59e0b';
         ctx.lineWidth = 2;
         ctx.stroke();
 
         ctx.fillStyle = '#0f172a';
-        ctx.fillText(p.speechText.slice(0, 18) + (p.speechText.length > 18 ? '...' : ''), x, bY + bubbleH / 2);
+        ctx.fillText(p.speechText.slice(0, 20) + (p.speechText.length > 20 ? '...' : ''), x, bY + bubbleH / 2);
       }
     }
   }

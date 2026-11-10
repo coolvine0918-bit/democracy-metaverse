@@ -259,7 +259,7 @@ io.on('connection', (socket) => {
     let charIdx = Math.max(0, Math.min(4, parseInt(characterIndex) || 0));
 
     if (isAdmin) {
-      safeNick = '선생님';
+      safeNick = '민부영 선생님';
       safeClass = '교사';
       charIdx = 99; // 교사용 전용 캐릭터 고정 번호
     } else {
