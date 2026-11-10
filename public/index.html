@@ -382,13 +382,18 @@
     <div id="adminPanel" class="admin-panel closed">
       <div class="admin-header">
         <div>
-          <h3>👨‍🏫 교사 제어 콘솔 (직접민주주의 수업)</h3>
-          <small>28명 실시간 토론 및 표결 총괄</small>
+          <h3>💻 교사 제어 콘솔 (노트북 관리 모드)</h3>
+          <small>28명 실시간 토론 및 표결 총괄 (키보드 핫키 지원)</small>
         </div>
-        <button id="btnCloseAdmin" class="btn-icon-close">✕</button>
+        <button id="btnCloseAdmin" class="btn-icon-close" title="사이드바 닫기/접기">✕</button>
       </div>
 
       <div class="admin-body">
+        <!-- 💻 노트북 핫키 안내 바 -->
+        <div class="admin-hotkeys-guide">
+          <span>⌨️ <b>단축키:</b> [1~3] 안건 송출 | [Space] 광장 소환 | [V] 투표 토글 | [R] 리셋 | [C] 채팅</span>
+        </div>
+
         <!-- 0. 학급 관리 & 결과 리포트 섹션 -->
         <div class="admin-section class-mgmt-section">
           <div class="class-header-row">
@@ -414,13 +419,13 @@
           <h4>📢 안건 송출 퀵 버튼 (원터치 학생 화면 배너 전송)</h4>
           <div class="quick-agenda-list">
             <button class="btn-agenda-quick" data-id="1" data-agenda="안건 1: 소년범죄 증가에 따라 '촉법소년' 제도를 완전히 폐지하고 성인과 동일하게 처벌해야 하는가?">
-              <b>안건 1</b>: 소년범죄 증가에 따라 '촉법소년' 제도를 완전히 폐지하고 성인과 동일하게 처벌해야 하는가? ⚖️
+              <b>안건 1</b>: 소년범죄 증가에 따라 '촉법소년' 제도를 완전히 폐지하고 성인과 동일하게 처벌해야 하는가? ⚖️ <kbd class="kbd-hint">1</kbd>
             </button>
             <button class="btn-agenda-quick" data-id="2" data-agenda="안건 2: 학생의 집중력 향상을 위해 '교내 스마트폰 반입 및 사용 전면 금지'를 법으로 의무화해야 하는가?">
-              <b>안건 2</b>: 학생의 집중력 향상을 위해 '교내 스마트폰 반입 및 사용 전면 금지'를 법으로 의무화해야 하는가? 📱
+              <b>안건 2</b>: 학생의 집중력 향상을 위해 '교내 스마트폰 반입 및 사용 전면 금지'를 법으로 의무화해야 하는가? 📱 <kbd class="kbd-hint">2</kbd>
             </button>
             <button class="btn-agenda-quick" data-id="3" data-agenda="안건 3: 영업의 자유인가, 차별인가? 식당과 카페의 '노키즈존(노틴존)' 운영을 법으로 금지해야 하는가?">
-              <b>안건 3</b>: 영업의 자유인가, 차별인가? 식당과 카페의 '노키즈존(노틴존)' 운영을 법으로 금지해야 하는가? 🚫
+              <b>안건 3</b>: 영업의 자유인가, 차별인가? 식당과 카페의 '노키즈존(노틴존)' 운영을 법으로 금지해야 하는가? 🚫 <kbd class="kbd-hint">3</kbd>
             </button>
           </div>
           <div class="custom-agenda-input">
@@ -432,17 +437,17 @@
         <!-- 2. 중앙 통제 버튼 (광장 소환 & 투표 활성화) -->
         <div class="admin-section admin-actions-row">
           <button id="btnSummonAll" class="btn-control btn-summon">
-            🚨 <b>광장 소환 버튼</b>
+            🚨 <b>광장 소환</b> <kbd class="kbd-hint">Space</kbd>
             <small>모든 학생을 즉시 중앙 광장으로 이동</small>
           </button>
 
           <button id="btnToggleVote" class="btn-control btn-vote-toggle">
-            🗳️ <b>투표 활성화 버튼</b>
+            🗳️ <b>투표 활성화</b> <kbd class="kbd-hint">V</kbd>
             <small id="voteToggleDesc">학생 태블릿에 투표 버튼 오픈</small>
           </button>
 
           <button id="btnResetVotes" class="btn-control btn-reset">
-            🔄 <b>투표 초기화</b>
+            🔄 <b>투표 초기화</b> <kbd class="kbd-hint">R</kbd>
             <small>현재 찬반 결과 리셋</small>
           </button>
         </div>

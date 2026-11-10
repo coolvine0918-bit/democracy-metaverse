@@ -263,8 +263,16 @@
   let dpr = window.devicePixelRatio || 1;
 
   function resizeCanvas() {
-    screenWidth = window.innerWidth;
-    screenHeight = window.innerHeight;
+    let width = window.innerWidth;
+    let height = window.innerHeight;
+
+    // 노트북 교사 모드일 때: 우측 사이드바(440px) 공간 분할 적용
+    if (isAdmin && window.innerWidth >= 1024 && adminPanel && !adminPanel.classList.contains('closed')) {
+      width = Math.max(600, window.innerWidth - 440);
+    }
+
+    screenWidth = width;
+    screenHeight = height;
     dpr = Math.min(window.devicePixelRatio || 1, 2); // 고해상도 태블릿 60fps 부드러운 성능 보장
     canvas.width = Math.round(screenWidth * dpr);
     canvas.height = Math.round(screenHeight * dpr);
@@ -307,8 +315,9 @@
     initSocket(nick, selectedCharacterIndex, userClass);
   }
 
-  // --- [교사 관리자 (?admin=true) 전용]: 학생 로그인 모달 건너뛰고 즉시 교사로 다이렉트 입장! ---
+  // --- [교사 관리자 (?admin=true) 전용]: 노트북 최적화 모드 & 즉시 다이렉트 입장! ---
   if (isAdmin) {
+    document.body.classList.add('teacher-laptop-mode');
     loginModal.classList.add('hidden');
     bottomActionBar.classList.remove('hidden');
     adminContainer.classList.remove('hidden');
@@ -316,6 +325,7 @@
     isJoined = true;
     startBgm();
     initSocket('선생님', 99, '교사');
+    setTimeout(resizeCanvas, 50);
   }
 
   // --- 4. Socket.io 통신 및 이벤트 등록 ---
@@ -1140,8 +1150,49 @@
   }
 
   // --- 12. 교사 관리자(Admin) 패널 ---
-  btnAdminToggle.addEventListener('click', () => adminPanel.classList.toggle('closed'));
-  btnCloseAdmin.addEventListener('click', () => adminPanel.classList.add('closed'));
+  btnAdminToggle.addEventListener('click', () => {
+    adminPanel.classList.toggle('closed');
+    resizeCanvas();
+  });
+  btnCloseAdmin.addEventListener('click', () => {
+    adminPanel.classList.toggle('closed');
+    resizeCanvas();
+  });
+
+  // --- [노트북 교사 모드 전용 키보드 단축키 (Keyboard Hotkeys)] ---
+  if (isAdmin) {
+    window.addEventListener('keydown', (e) => {
+      // 텍스트 입력창 포커스 중에는 단축키 비활성화
+      const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+      if (activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select') return;
+
+      if (e.code === 'Digit1') {
+        e.preventDefault();
+        const btn1 = document.querySelector('.btn-agenda-quick[data-id="1"]');
+        if (btn1) btn1.click();
+      } else if (e.code === 'Digit2') {
+        e.preventDefault();
+        const btn2 = document.querySelector('.btn-agenda-quick[data-id="2"]');
+        if (btn2) btn2.click();
+      } else if (e.code === 'Digit3') {
+        e.preventDefault();
+        const btn3 = document.querySelector('.btn-agenda-quick[data-id="3"]');
+        if (btn3) btn3.click();
+      } else if (e.code === 'Space') {
+        e.preventDefault();
+        if (btnSummonAll) btnSummonAll.click();
+      } else if (e.code === 'KeyV') {
+        e.preventDefault();
+        if (btnToggleVote) btnToggleVote.click();
+      } else if (e.code === 'KeyR') {
+        e.preventDefault();
+        if (btnResetVotes) btnResetVotes.click();
+      } else if (e.code === 'KeyC') {
+        e.preventDefault();
+        btnChatToggle.click();
+      }
+    });
+  }
 
   // [수업 결과 엑셀(CSV) 다운로드]
   if (btnExportClassResults) {

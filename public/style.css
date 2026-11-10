@@ -2135,3 +2135,150 @@ html, body {
     bottom: 78px;
   }
 }
+
+/* ================= 11. 💻 교사 노트북/PC 대화면 분할 레이아웃 (Teacher Laptop Mode) ================= */
+body.teacher-laptop-mode .kbd-hint {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #fef08a;
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 1px 6px;
+  border-radius: 6px;
+  margin-left: 6px;
+  font-family: inherit;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  vertical-align: middle;
+}
+
+body.teacher-laptop-mode .admin-hotkeys-guide {
+  background: rgba(139, 92, 246, 0.18);
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-size: 0.82rem;
+  color: #ddd6fe;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+@media (min-width: 1024px) {
+  /* 노트북에서는 불필요한 모바일 가상 조이스틱 숨김 */
+  body.teacher-laptop-mode #joystickZone {
+    display: none !important;
+  }
+
+  /* 캔버스는 우측 사이드바(440px)를 제외한 전역에 매끄럽게 배치 */
+  body.teacher-laptop-mode #gameCanvas {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: calc(100vw - 440px);
+    height: 100vh;
+  }
+
+  body.teacher-laptop-mode #topBarContainer {
+    right: 460px;
+  }
+
+  body.teacher-laptop-mode .action-bar {
+    right: 460px;
+    bottom: 24px;
+  }
+
+  body.teacher-laptop-mode .chat-drawer {
+    right: 460px;
+    bottom: 104px;
+    width: 380px;
+  }
+
+  /* 대형 배너도 메타버스 캔버스 중앙 영역에 배치 */
+  body.teacher-laptop-mode .agenda-big-banner,
+  body.teacher-laptop-mode .teacher-big-banner {
+    right: 440px;
+  }
+
+  /* 교사 제어 콘솔: 우측 상시 도킹된 세련된 고정 사이드바 */
+  body.teacher-laptop-mode .admin-container {
+    position: static;
+  }
+
+  body.teacher-laptop-mode .btn-admin-toggle {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 90;
+  }
+
+  body.teacher-laptop-mode .admin-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 440px;
+    height: 100vh;
+    max-height: 100vh;
+    max-width: 440px;
+    border-radius: 0;
+    border-top: none;
+    border-right: none;
+    border-bottom: none;
+    border-left: 3px solid #8b5cf6;
+    background: #0f172a;
+    box-shadow: -12px 0 40px rgba(0, 0, 0, 0.7);
+    z-index: 100;
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  body.teacher-laptop-mode .admin-panel.closed {
+    transform: translateX(100%);
+    opacity: 1;
+    pointer-events: none;
+  }
+
+  body.teacher-laptop-mode .admin-header {
+    padding: 18px 20px;
+    background: linear-gradient(135deg, #1e1b4b, #2e1065);
+    border-bottom: 2px solid #8b5cf6;
+  }
+
+  body.teacher-laptop-mode .btn-icon-close {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-size: 0.85rem;
+    color: #e2e8f0;
+    font-weight: 700;
+  }
+
+  body.teacher-laptop-mode .btn-icon-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+  }
+
+  /* 노트북 대화면에 최적화된 마우스 호버 효과 */
+  body.teacher-laptop-mode .btn-agenda-quick:hover {
+    background: #1e293b;
+    border-color: #8b5cf6;
+    transform: translateX(4px);
+  }
+
+  body.teacher-laptop-mode .btn-control:hover {
+    filter: brightness(1.12);
+    transform: translateY(-2px);
+  }
+
+  body.teacher-laptop-mode .btn-class-act:hover {
+    filter: brightness(1.1);
+    transform: translateY(-2px);
+  }
+
+  body.teacher-laptop-mode .btn-student-kick:hover {
+    background: #ef4444;
+    color: #ffffff;
+    transform: scale(1.05);
+  }
+}
