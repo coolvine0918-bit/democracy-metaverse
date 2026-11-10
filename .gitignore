@@ -1,0 +1,6 @@
+node_modules
+out
+temp_audio
+.remotion
+.DS_Store
+*.log

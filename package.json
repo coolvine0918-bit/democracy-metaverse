@@ -1,0 +1,14 @@
+{
+  "name": "democracy-metaverse",
+  "version": "1.0.0",
+  "description": "중학교 사회 수업용(직접민주주의) 28명 동시 접속 2D 탑뷰 메타버스 웹앱",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5"
+  }
+}

@@ -1,0 +1,1149 @@
+/* ========================================================
+   중학교 사회 직접민주주의 메타버스 스타일시트 (태블릿 터치 최적화)
+   ======================================================== */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  position: fixed;
+  font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", "Pretendard", Roboto, sans-serif;
+  background-color: #1a202c;
+  color: #f7fafc;
+}
+
+/* 캔버스 */
+#gameCanvas {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  touch-action: none;
+}
+
+/* 공통 숨김 */
+.hidden {
+  display: none !important;
+}
+
+/* ================= 1. 모달 & 로그인 화면 ================= */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  padding: 16px;
+}
+
+.login-card {
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 24px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  width: 100%;
+  max-width: 520px;
+  padding: 32px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  text-align: center;
+  animation: cardFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes cardFadeIn {
+  from { opacity: 0; transform: scale(0.95) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.badge-role {
+  display: inline-block;
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.login-header h1 {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #ffffff;
+  margin-bottom: 6px;
+}
+
+.login-header p {
+  font-size: 0.95rem;
+  color: #94a3b8;
+}
+
+.form-group {
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #cbd5e1;
+}
+
+.form-group input {
+  width: 100%;
+  height: 52px;
+  padding: 0 16px;
+  border-radius: 12px;
+  border: 2px solid #334155;
+  background: #0f172a;
+  color: #ffffff;
+  font-size: 1.1rem;
+  font-weight: 600;
+  outline: none;
+  transition: border-color 0.2s;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.form-group input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+}
+
+/* 5종 아바타 선택 그리드 */
+.avatar-selector {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+
+.avatar-option {
+  background: #0f172a;
+  border: 2px solid #334155;
+  border-radius: 14px;
+  padding: 10px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.avatar-option.selected {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.15);
+  transform: translateY(-3px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.avatar-preview {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background-size: cover;
+  background-position: center;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+.preview-0 { background-color: #3b82f6; background-image: radial-gradient(circle, #60a5fa 30%, #1d4ed8 70%); }
+.preview-1 { background-color: #ef4444; background-image: radial-gradient(circle, #f87171 30%, #b91c1c 70%); }
+.preview-2 { background-color: #22c55e; background-image: radial-gradient(circle, #4ade80 30%, #15803d 70%); }
+.preview-3 { background-color: #eab308; background-image: radial-gradient(circle, #facc15 30%, #a16207 70%); }
+.preview-4 { background-color: #a855f7; background-image: radial-gradient(circle, #c084fc 30%, #7e22ce 70%); }
+
+.avatar-option span {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #cbd5e1;
+}
+
+.device-tip {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  color: #fcd34d;
+  text-align: left;
+}
+
+.btn-primary-large {
+  width: 100%;
+  height: 58px;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  border: none;
+  border-radius: 16px;
+  color: #ffffff;
+  font-size: 1.15rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(37, 99, 235, 0.4);
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+
+.btn-primary-large:active {
+  transform: scale(0.98);
+  box-shadow: 0 2px 10px rgba(37, 99, 235, 0.3);
+}
+
+/* ================= 2. 상단 고정 바 & 안건 ================= */
+#topBarContainer {
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  right: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  z-index: 50;
+  pointer-events: none;
+}
+
+.location-badge {
+  pointer-events: auto;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 30px;
+  padding: 10px 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.capacity-tag {
+  background: #3b82f6;
+  color: #ffffff;
+  font-size: 0.8rem;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 800;
+}
+
+.capacity-tag.full {
+  background: #ef4444;
+}
+
+.agenda-pinned {
+  pointer-events: auto;
+  flex: 1;
+  max-width: 680px;
+  background: rgba(30, 41, 59, 0.9);
+  backdrop-filter: blur(10px);
+  border: 2px solid #3b82f6;
+  border-radius: 30px;
+  padding: 8px 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  animation: slideDown 0.4s ease;
+}
+
+@keyframes slideDown {
+  from { transform: translateY(-30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.agenda-tag {
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 0.8rem;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.agenda-content {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.btn-sound {
+  pointer-events: auto;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(15, 23, 42, 0.85);
+  color: #ffffff;
+  font-size: 1.3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.btn-sound.muted {
+  filter: grayscale(1);
+  opacity: 0.6;
+}
+
+/* 대형 안건 공지 팝업 배너 (송출 시 5초간 화면 중앙) */
+.agenda-big-banner {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 20px;
+  animation: zoomBanner 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes zoomBanner {
+  from { opacity: 0; transform: scale(0.7); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.agenda-card {
+  background: linear-gradient(145deg, #1e293b, #0f172a);
+  border: 3px solid #3b82f6;
+  border-radius: 28px;
+  padding: 36px 30px;
+  max-width: 640px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), 0 0 40px rgba(59, 130, 246, 0.3);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.agenda-icon {
+  font-size: 3rem;
+  animation: pulseIcon 1.5s infinite;
+}
+
+@keyframes pulseIcon {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+
+.agenda-card h2 {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #60a5fa;
+}
+
+.agenda-card p {
+  font-size: 1.35rem;
+  font-weight: 800;
+  line-height: 1.4;
+  color: #ffffff;
+  word-break: keep-all;
+}
+
+.agenda-timer-bar {
+  width: 100%;
+  height: 8px;
+  background: #334155;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 10px;
+}
+
+.agenda-progress-fill {
+  width: 100%;
+  height: 100%;
+  background: #3b82f6;
+  transition: width 5s linear;
+}
+
+.timer-desc {
+  font-size: 0.85rem;
+  color: #94a3b8;
+}
+
+/* ================= 3. 태블릿 좌측 하단 가상 조이스틱 ================= */
+.joystick-zone {
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  width: 140px;
+  height: 140px;
+  z-index: 40;
+  touch-action: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.joystick-base {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.65);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(4px);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.joystick-knob {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #60a5fa 30%, #2563eb 90%);
+  border: 2px solid #ffffff;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+  position: absolute;
+  pointer-events: none;
+  transform: translate(0, 0);
+  transition: transform 0.05s ease-out;
+}
+
+.joystick-guide {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.5);
+  margin-top: 4px;
+  font-weight: 600;
+}
+
+/* ================= 4. 하단 태블릿 맞춤형 대형 액션 버튼 바 ================= */
+.action-bar {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 40;
+}
+
+.action-btn {
+  height: 64px;
+  min-width: 80px;
+  padding: 0 16px;
+  border-radius: 20px;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  color: #ffffff;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+  transition: transform 0.1s, box-shadow 0.1s, filter 0.1s;
+}
+
+.action-btn:active {
+  transform: scale(0.94);
+}
+
+.btn-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.btn-label {
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+/* ✋ 발언 신청 */
+.btn-hand {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+.btn-hand.active {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  box-shadow: 0 0 20px #f59e0b;
+  transform: scale(1.05);
+}
+
+/* 투표 버튼 그룹 (찬성 / 반대) */
+.vote-btn-group {
+  display: flex;
+  gap: 10px;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(8px);
+  padding: 6px;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+/* ✅ 찬성 */
+.btn-agree {
+  background: linear-gradient(135deg, #10b981, #059669);
+  min-width: 90px;
+}
+.btn-agree.active {
+  box-shadow: 0 0 20px #10b981;
+  transform: scale(1.05);
+}
+
+/* ❌ 반대 */
+.btn-disagree {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  min-width: 90px;
+}
+.btn-disagree.active {
+  box-shadow: 0 0 20px #ef4444;
+  transform: scale(1.05);
+}
+
+/* 투표 비활성화 상태 */
+.disabled-vote {
+  filter: grayscale(0.85);
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* 💬 채팅 */
+.btn-chat {
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  position: relative;
+}
+
+.unread-dot {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  width: 10px;
+  height: 10px;
+  background: #ef4444;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+}
+
+/* ================= 5. 채팅 서랍창 (Tablet Pop-up Drawer) ================= */
+.chat-drawer {
+  position: fixed;
+  bottom: 96px;
+  right: 20px;
+  width: 420px;
+  max-width: calc(100vw - 40px);
+  height: 480px;
+  max-height: calc(100vh - 120px);
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 24px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  z-index: 60;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s;
+  overflow: hidden;
+}
+
+.chat-drawer.closed {
+  transform: translateY(20px) scale(0.95);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.chat-header {
+  padding: 14px 18px;
+  background: #0f172a;
+  border-bottom: 1px solid #334155;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.chat-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.chat-icon {
+  font-size: 1.5rem;
+}
+
+.chat-title-group h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.chat-title-group small {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.btn-close-drawer {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 6px;
+}
+
+/* 빠른 의견 칩 */
+.quick-chips {
+  padding: 8px 12px;
+  background: rgba(15, 23, 42, 0.5);
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  white-space: nowrap;
+  border-bottom: 1px solid #334155;
+}
+
+.quick-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.chip {
+  background: #334155;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #e2e8f0;
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.chip:active {
+  background: #3b82f6;
+  color: #ffffff;
+}
+
+.chat-messages {
+  flex: 1;
+  padding: 14px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.chat-bubble-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-width: 85%;
+}
+
+.chat-bubble-row.mine {
+  align-self: flex-end;
+}
+
+.chat-bubble-row.other {
+  align-self: flex-start;
+}
+
+.chat-sender-info {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.chat-bubble {
+  padding: 10px 14px;
+  border-radius: 16px;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.chat-bubble-row.mine .chat-bubble {
+  background: #2563eb;
+  color: #ffffff;
+  border-bottom-right-radius: 4px;
+}
+
+.chat-bubble-row.other .chat-bubble {
+  background: #334155;
+  color: #f1f5f9;
+  border-bottom-left-radius: 4px;
+}
+
+.system-message {
+  text-align: center;
+  font-size: 0.8rem;
+  color: #94a3b8;
+  background: rgba(15, 23, 42, 0.4);
+  padding: 6px 12px;
+  border-radius: 20px;
+  margin: 6px auto;
+}
+
+.chat-input-row {
+  padding: 12px;
+  background: #0f172a;
+  border-top: 1px solid #334155;
+  display: flex;
+  gap: 8px;
+}
+
+.chat-input-row input {
+  flex: 1;
+  height: 48px;
+  padding: 0 14px;
+  border-radius: 12px;
+  border: 1px solid #334155;
+  background: #1e293b;
+  color: #ffffff;
+  font-size: 1rem;
+  outline: none;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.chat-input-row input:focus {
+  border-color: #3b82f6;
+}
+
+.btn-send {
+  height: 48px;
+  padding: 0 18px;
+  background: #2563eb;
+  border: none;
+  border-radius: 12px;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+/* ================= 6. 시스템 토스트 알림 ================= */
+.system-toast {
+  position: fixed;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #ef4444;
+  color: #ffffff;
+  border-radius: 30px;
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 800;
+  font-size: 1rem;
+  box-shadow: 0 10px 25px rgba(239, 68, 68, 0.5);
+  z-index: 300;
+  animation: toastBounce 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes toastBounce {
+  from { opacity: 0; transform: translate(-50%, -20px) scale(0.9); }
+  to { opacity: 1; transform: translate(-50%, 0) scale(1); }
+}
+
+.toast-icon {
+  font-size: 1.3rem;
+}
+
+/* ================= 7. 교사 관리자(Admin) 패널 ================= */
+.admin-container {
+  position: fixed;
+  top: 14px;
+  right: 70px;
+  z-index: 100;
+}
+
+.btn-admin-toggle {
+  background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 30px;
+  padding: 10px 18px;
+  font-size: 0.95rem;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(109, 40, 217, 0.4);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-admin-toggle span {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+}
+
+.admin-panel {
+  position: fixed;
+  top: 64px;
+  right: 14px;
+  width: 480px;
+  max-width: calc(100vw - 28px);
+  max-height: calc(100vh - 80px);
+  background: #0f172a;
+  border: 2px solid #8b5cf6;
+  border-radius: 24px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.7);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s;
+}
+
+.admin-panel.closed {
+  transform: translateY(-20px) scale(0.95);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.admin-header {
+  padding: 16px 20px;
+  background: #1e1b4b;
+  border-bottom: 1px solid rgba(139, 92, 246, 0.3);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.admin-header h3 {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #c4b5fd;
+}
+
+.admin-header small {
+  color: #a5b4fc;
+  font-size: 0.8rem;
+}
+
+.btn-icon-close {
+  background: transparent;
+  border: none;
+  color: #cbd5e1;
+  font-size: 1.3rem;
+  cursor: pointer;
+}
+
+.admin-body {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.admin-section {
+  background: #1e293b;
+  border-radius: 16px;
+  padding: 14px;
+  border: 1px solid #334155;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.admin-section h4 {
+  font-size: 0.9rem;
+  font-weight: 800;
+  color: #cbd5e1;
+}
+
+/* 안건 퀵 버튼 3종 */
+.quick-agenda-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.btn-agenda-quick {
+  background: #0f172a;
+  border: 1px solid #475569;
+  border-radius: 12px;
+  padding: 12px 14px;
+  text-align: left;
+  color: #f1f5f9;
+  font-size: 0.85rem;
+  line-height: 1.3;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-agenda-quick:active {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.2);
+}
+
+.custom-agenda-input {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.custom-agenda-input input {
+  flex: 1;
+  height: 42px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid #475569;
+  background: #0f172a;
+  color: #ffffff;
+  font-size: 0.85rem;
+  outline: none;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.btn-secondary {
+  height: 42px;
+  padding: 0 14px;
+  background: #475569;
+  border: none;
+  border-radius: 10px;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+/* 관리자 제어 버튼 (광장 소환, 투표 활성화, 리셋) */
+.admin-actions-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.btn-control {
+  border: none;
+  border-radius: 14px;
+  padding: 12px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: #ffffff;
+  cursor: pointer;
+  text-align: center;
+}
+
+.btn-control:active {
+  transform: scale(0.96);
+}
+
+.btn-summon {
+  background: linear-gradient(135deg, #f97316, #ea580c);
+}
+
+.btn-vote-toggle {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+}
+.btn-vote-toggle.active {
+  background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.btn-reset {
+  background: #475569;
+}
+
+.btn-control b {
+  font-size: 0.85rem;
+}
+
+.btn-control small {
+  font-size: 0.65rem;
+  opacity: 0.8;
+  line-height: 1.1;
+}
+
+/* 투표 집계 현황 */
+.tally-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  text-align: center;
+}
+
+.stat-box {
+  border-radius: 12px;
+  padding: 8px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.agree-box { background: rgba(16, 185, 129, 0.2); border: 1px solid #10b981; }
+.disagree-box { background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; }
+.undecided-box { background: rgba(148, 163, 184, 0.2); border: 1px solid #64748b; }
+
+.stat-label { font-size: 0.75rem; font-weight: 700; color: #cbd5e1; }
+.stat-num { font-size: 1.2rem; font-weight: 800; color: #ffffff; }
+.stat-percent { font-size: 0.75rem; color: #94a3b8; }
+
+.tally-bar {
+  width: 100%;
+  height: 14px;
+  background: #334155;
+  border-radius: 7px;
+  overflow: hidden;
+  display: flex;
+}
+
+.bar-agree { background: #10b981; transition: width 0.3s; }
+.bar-disagree { background: #ef4444; transition: width 0.3s; }
+
+/* 발언 신청자 대기열 */
+.speaker-queue-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 140px;
+  overflow-y: auto;
+}
+
+.speaker-item {
+  background: #0f172a;
+  border: 1px solid #475569;
+  border-radius: 10px;
+  padding: 8px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.speaker-item span {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #fcd34d;
+}
+
+.btn-speaker-clear {
+  background: #3b82f6;
+  border: none;
+  border-radius: 8px;
+  color: #ffffff;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.empty-notice {
+  font-size: 0.8rem;
+  color: #64748b;
+  text-align: center;
+  padding: 10px;
+}
+
+/* 7개 카페 모니터링 그리드 */
+.cafe-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.cafe-card {
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cafe-card-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #cbd5e1;
+}
+
+.cafe-card-badge {
+  background: #334155;
+  padding: 2px 6px;
+  border-radius: 8px;
+  font-size: 0.7rem;
+}
+
+.cafe-card-badge.full {
+  background: #ef4444;
+  color: #ffffff;
+}
+
+.cafe-occupant-names {
+  font-size: 0.7rem;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ================= 8. 태블릿 반응형 미디어 쿼리 ================= */
+@media (max-width: 768px) {
+  .login-card {
+    padding: 24px 20px;
+    max-width: 92vw;
+  }
+  .avatar-selector {
+    gap: 6px;
+  }
+  .avatar-preview {
+    width: 36px;
+    height: 36px;
+  }
+  .action-bar {
+    bottom: 14px;
+    right: 14px;
+    gap: 8px;
+  }
+  .action-btn {
+    height: 58px;
+    min-width: 68px;
+    padding: 0 10px;
+  }
+  .btn-agree, .btn-disagree {
+    min-width: 76px;
+  }
+  .joystick-zone {
+    bottom: 16px;
+    left: 16px;
+    width: 120px;
+    height: 120px;
+  }
+  .joystick-base {
+    width: 100px;
+    height: 100px;
+  }
+  .joystick-knob {
+    width: 44px;
+    height: 44px;
+  }
+  .chat-drawer {
+    width: calc(100vw - 28px);
+    right: 14px;
+    bottom: 84px;
+  }
+  .admin-panel {
+    width: calc(100vw - 28px);
+    right: 14px;
+  }
+}

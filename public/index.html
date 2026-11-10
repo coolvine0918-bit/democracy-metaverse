@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>중학교 사회 직접민주주의 메타버스 총회</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- 숨김 오디오 플레이어 (브라우저 정책에 맞춰 사용자 첫 터치 시 재생) -->
+  <audio id="audioBgm" src="assets/bgm swiss.mp3" loop preload="auto"></audio>
+  <audio id="audioSuccess" src="assets/Success bell.mp3" preload="auto"></audio>
+  <audio id="audioError" src="assets/Error beep.mp3" preload="auto"></audio>
+  <audio id="audioPop" src="assets/Notification pop.mp3" preload="auto"></audio>
+
+  <!-- 1. 접속 및 캐릭터 선택 모달 화면 -->
+  <div id="loginModal" class="modal-overlay">
+    <div class="login-card">
+      <div class="login-header">
+        <span class="badge-role">🏛️ 중학교 사회 수업</span>
+        <h1>직접민주주의 시민 총회</h1>
+        <p>우리 마을의 중요한 안건을 토론하고 직접 투표해 보세요!</p>
+      </div>
+
+      <div class="form-group">
+        <label for="inputNickname">학생 이름 (출석번호 또는 이름)</label>
+        <input type="text" id="inputNickname" maxlength="10" placeholder="예: 1번 김민주" autofocus autocomplete="off">
+      </div>
+
+      <div class="form-group">
+        <label>아바타 선택 (5종 중 하나 터치)</label>
+        <div class="avatar-selector" id="avatarSelector">
+          <div class="avatar-option selected" data-index="0">
+            <div class="avatar-preview preview-0"></div>
+            <span>파랑 후드</span>
+          </div>
+          <div class="avatar-option" data-index="1">
+            <div class="avatar-preview preview-1"></div>
+            <span>빨강 조끼</span>
+          </div>
+          <div class="avatar-option" data-index="2">
+            <div class="avatar-preview preview-2"></div>
+            <span>초록 자켓</span>
+          </div>
+          <div class="avatar-option" data-index="3">
+            <div class="avatar-preview preview-3"></div>
+            <span>노랑 점퍼</span>
+          </div>
+          <div class="avatar-option" data-index="4">
+            <div class="avatar-preview preview-4"></div>
+            <span>보라 스웨터</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="device-tip">
+        📱 <b>태블릿 조작 팁:</b> 화면 좌측 하단 가상 조이스틱을 밀거나, 가고 싶은 곳을 <b>터치</b>하면 이동합니다.
+      </div>
+
+      <button id="btnEnterPlaza" class="btn-primary-large">광장 입장하기 🚀</button>
+    </div>
+  </div>
+
+  <!-- 메인 2D 게임 캔버스 -->
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- 상단 상태 & 안건 표시 영역 -->
+  <div id="topBarContainer">
+    <!-- 현재 위치 및 구역 정보 뱃지 -->
+    <div id="locationBadge" class="location-badge">
+      <span class="loc-icon">🏛️</span>
+      <span id="locText">중앙 광장 (민주 아고라)</span>
+      <span id="locCapacityBadge" class="capacity-tag hidden">0/4</span>
+    </div>
+
+    <!-- 고정 안건 바 (배너가 5초 후 축소되어 고정됨) -->
+    <div id="agendaPinnedBar" class="agenda-pinned hidden">
+      <span class="agenda-tag">📢 심의 안건</span>
+      <span id="pinnedAgendaText" class="agenda-content">안건이 아직 상정되지 않았습니다.</span>
+    </div>
+
+    <!-- 배경음악/사운드 토글 버튼 -->
+    <button id="btnSoundToggle" class="btn-sound" title="소리 On/Off">
+      🔊
+    </button>
+  </div>
+
+  <!-- 대형 안건 공지 팝업 배너 (송출 시 화면 중앙 5초간 강조) -->
+  <div id="agendaBigBanner" class="agenda-big-banner hidden">
+    <div class="agenda-card">
+      <div class="agenda-icon">📜</div>
+      <h2>새로운 마을 안건 상정!</h2>
+      <p id="bigAgendaText">안건 내용이 표시됩니다.</p>
+      <div class="agenda-timer-bar">
+        <div id="agendaProgress" class="agenda-progress-fill"></div>
+      </div>
+      <span class="timer-desc">5초 후 상단에 고정됩니다. 찬반을 자유롭게 토론해 주세요!</span>
+    </div>
+  </div>
+
+  <!-- 좌측 하단 태블릿 가상 조이스틱 -->
+  <div id="joystickZone" class="joystick-zone">
+    <div id="joystickBase" class="joystick-base">
+      <div id="joystickKnob" class="joystick-knob"></div>
+    </div>
+    <span class="joystick-guide">이동 조이스틱</span>
+  </div>
+
+  <!-- 화면 하단 태블릿 맞춤형 대형 액션 버튼 바 -->
+  <div id="bottomActionBar" class="action-bar hidden">
+    <button id="btnHand" class="action-btn btn-hand" title="발언 신청">
+      <span class="btn-icon">✋</span>
+      <span class="btn-label">발언 신청</span>
+    </button>
+
+    <div class="vote-btn-group" id="voteButtonGroup">
+      <button id="btnAgree" class="action-btn btn-agree disabled-vote" title="찬성">
+        <span class="btn-icon">✅</span>
+        <span class="btn-label">찬성</span>
+      </button>
+
+      <button id="btnDisagree" class="action-btn btn-disagree disabled-vote" title="반대">
+        <span class="btn-icon">❌</span>
+        <span class="btn-label">반대</span>
+      </button>
+    </div>
+
+    <button id="btnChatToggle" class="action-btn btn-chat" title="채팅창 열기">
+      <span class="btn-icon">💬</span>
+      <span class="btn-label">채팅</span>
+      <span id="chatBadge" class="unread-dot hidden"></span>
+    </button>
+  </div>
+
+  <!-- 소회의실 & 광장 채팅 서랍창 (Tablet Pop-up Drawer) -->
+  <div id="chatDrawer" class="chat-drawer closed">
+    <div class="chat-header">
+      <div class="chat-title-group">
+        <span class="chat-icon">💬</span>
+        <div>
+          <h3 id="chatTitle">중앙 광장 전체 채팅</h3>
+          <small id="chatSubtitle">광장에 있는 모든 학생과 대화합니다.</small>
+        </div>
+      </div>
+      <button id="btnCloseChat" class="btn-close-drawer">✕</button>
+    </div>
+
+    <!-- 빠른 의견 입력 칩 -->
+    <div class="quick-chips">
+      <button class="chip" data-msg="해당 안건에 적극 찬성합니다!">💡 찬성합니다</button>
+      <button class="chip" data-msg="부작용 우려로 반대 의견입니다.">🤔 반대/신중론</button>
+      <button class="chip" data-msg="질문 있습니다! 발언권 부탁드립니다.">✋ 발언권 요청</button>
+      <button class="chip" data-msg="좋은 의견입니다! 동의해요.">👍 동의해요</button>
+    </div>
+
+    <!-- 메시지 목록 -->
+    <div id="chatMessages" class="chat-messages">
+      <div class="system-message">🏛️ 메타버스 총회에 오신 것을 환영합니다!</div>
+    </div>
+
+    <!-- 메시지 입력 폼 -->
+    <form id="chatForm" class="chat-input-row" onsubmit="return false;">
+      <input type="text" id="chatInput" placeholder="메시지를 입력하세요 (터치)..." autocomplete="off" maxlength="80">
+      <button type="submit" id="btnSendChat" class="btn-send">전송</button>
+    </form>
+  </div>
+
+  <!-- 시스템 알림 토스트 (정원 초과, 광장 소환 등) -->
+  <div id="systemToast" class="system-toast hidden">
+    <span id="toastIcon" class="toast-icon">⚠️</span>
+    <span id="toastMsg" class="toast-message">알림 메시지</span>
+  </div>
+
+  <!-- ================= 교사 관리자(Admin) 패널 ================= -->
+  <!-- URL에 ?admin=true 가 있을 때만 로드 및 활성화 -->
+  <div id="adminContainer" class="admin-container hidden">
+    <!-- 교사 관리자 토글 플로팅 버튼 -->
+    <button id="btnAdminToggle" class="btn-admin-toggle">
+      👨‍🏫 교사 패널 <span id="adminBadgeCount">0명</span>
+    </button>
+
+    <!-- 교사 컨트롤 대시보드 윈도우 -->
+    <div id="adminPanel" class="admin-panel closed">
+      <div class="admin-header">
+        <div>
+          <h3>👨‍🏫 교사 제어 콘솔 (직접민주주의 수업)</h3>
+          <small>28명 실시간 토론 및 표결 총괄</small>
+        </div>
+        <button id="btnCloseAdmin" class="btn-icon-close">✕</button>
+      </div>
+
+      <div class="admin-body">
+        <!-- 1. 안건 퀵 버튼 3종 -->
+        <div class="admin-section">
+          <h4>📢 안건 송출 퀵 버튼 (원터치 학생 화면 배너 전송)</h4>
+          <div class="quick-agenda-list">
+            <button class="btn-agenda-quick" data-agenda="안건 1: 소년범죄 증가에 따라 '촉법소년' 제도를 완전히 폐지하고 성인과 동일하게 처벌해야 하는가?">
+              <b>안건 1</b>: 소년범죄 증가에 따라 '촉법소년' 제도를 완전히 폐지하고 성인과 동일하게 처벌해야 하는가? ⚖️
+            </button>
+            <button class="btn-agenda-quick" data-agenda="안건 2: 학생의 집중력 향상을 위해 '교내 스마트폰 반입 및 사용 전면 금지'를 법으로 의무화해야 하는가?">
+              <b>안건 2</b>: 학생의 집중력 향상을 위해 '교내 스마트폰 반입 및 사용 전면 금지'를 법으로 의무화해야 하는가? 📱
+            </button>
+            <button class="btn-agenda-quick" data-agenda="안건 3: 영업의 자유인가, 차별인가? 식당과 카페의 '노키즈존(노틴존)' 운영을 법으로 금지해야 하는가?">
+              <b>안건 3</b>: 영업의 자유인가, 차별인가? 식당과 카페의 '노키즈존(노틴존)' 운영을 법으로 금지해야 하는가? 🚫
+            </button>
+          </div>
+          <div class="custom-agenda-input">
+            <input type="text" id="inputCustomAgenda" placeholder="직접 새 안건을 입력하여 송출할 수도 있습니다...">
+            <button id="btnSendCustomAgenda" class="btn-secondary">안건 송출</button>
+          </div>
+        </div>
+
+        <!-- 2. 중앙 통제 버튼 (광장 소환 & 투표 활성화) -->
+        <div class="admin-section admin-actions-row">
+          <button id="btnSummonAll" class="btn-control btn-summon">
+            🚨 <b>광장 소환 버튼</b>
+            <small>모든 학생을 즉시 중앙 광장으로 이동</small>
+          </button>
+
+          <button id="btnToggleVote" class="btn-control btn-vote-toggle">
+            🗳️ <b>투표 활성화 버튼</b>
+            <small id="voteToggleDesc">학생 태블릿에 투표 버튼 오픈</small>
+          </button>
+
+          <button id="btnResetVotes" class="btn-control btn-reset">
+            🔄 <b>투표 초기화</b>
+            <small>현재 찬반 결과 리셋</small>
+          </button>
+        </div>
+
+        <!-- 3. 실시간 찬/반 집계 현황판 -->
+        <div class="admin-section tally-section">
+          <h4>📊 실시간 투표 집계 현황</h4>
+          <div class="tally-stats">
+            <div class="stat-box agree-box">
+              <span class="stat-label">찬성 ✅</span>
+              <span id="tallyAgreeCount" class="stat-num">0명</span>
+              <span id="tallyAgreePercent" class="stat-percent">(0%)</span>
+            </div>
+            <div class="stat-box disagree-box">
+              <span class="stat-label">반대 ❌</span>
+              <span id="tallyDisagreeCount" class="stat-num">0명</span>
+              <span id="tallyDisagreePercent" class="stat-percent">(0%)</span>
+            </div>
+            <div class="stat-box undecided-box">
+              <span class="stat-label">미투표 ⏳</span>
+              <span id="tallyUndecidedCount" class="stat-num">0명</span>
+              <span id="tallyUndecidedPercent" class="stat-percent">(0%)</span>
+            </div>
+          </div>
+          <div class="tally-bar">
+            <div id="barAgree" class="bar-agree" style="width: 0%;"></div>
+            <div id="barDisagree" class="bar-disagree" style="width: 0%;"></div>
+          </div>
+        </div>
+
+        <!-- 4. 발언 신청자 대기열 (✋) -->
+        <div class="admin-section">
+          <h4>✋ 발언 신청 대기열 (<span id="handCount">0</span>명)</h4>
+          <div id="speakerQueueList" class="speaker-queue-list">
+            <div class="empty-notice">현재 발언을 신청한 학생이 없습니다.</div>
+          </div>
+        </div>
+
+        <!-- 5. 7개 소회의실(카페) 학생 분포 모니터링 -->
+        <div class="admin-section">
+          <h4>☕ 7개 소회의실(카페) 정원 현황 (최대 4명)</h4>
+          <div id="cafeMonitoringGrid" class="cafe-grid">
+            <!-- 자바스크립트로 7개 카페 카드 동적 렌더링 -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Socket.io 클라이언트 스크립트 -->
+  <script src="/socket.io/socket.io.js"></script>
+  <!-- 메인 애플리케이션 스크립트 -->
+  <script src="app.js"></script>
+</body>
+</html>

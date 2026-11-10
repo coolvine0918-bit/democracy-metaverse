@@ -1,0 +1,156 @@
+{
+  "title": "중학교 1학년 사회 175쪽 '현대 민주주의의 특징과 과제'",
+  "fps": 30,
+  "width": 1920,
+  "height": 1080,
+  "totalDurationSec": 54.676,
+  "totalDurationFrames": 1640,
+  "introFrames": 30,
+  "outroFrames": 60,
+  "dialogues": [
+    {
+      "id": 1,
+      "audioFile": "audio_1.mp3",
+      "speaker": "seojun",
+      "speakerName": "서준",
+      "voice": "ko-KR-InJoonNeural",
+      "text": "유림아! 고대 아테네처럼 우리도 5천만 명이 다 모여서 법을 만들면 안 돼?",
+      "board": {
+        "topic": "175쪽 핵심 탐구",
+        "title": "고대 아테네 직접 민주주의",
+        "icon": "🏛️",
+        "subtext": "모든 시민이 민회에 모여 국가의 주요 정책을 직접 결정",
+        "points": [
+          "시민들이 한자리에 모여 직접 법과 정책 결정",
+          "인구가 적고 영토가 좁은 도시 국가(폴리스)에서 가능"
+        ]
+      },
+      "durationSec": 7.656,
+      "startSec": 1,
+      "endSec": 8.656,
+      "startFrame": 30,
+      "durationFrames": 230,
+      "endFrame": 260
+    },
+    {
+      "id": 2,
+      "audioFile": "audio_2.mp3",
+      "speaker": "yurim",
+      "speakerName": "유림",
+      "voice": "ko-KR-SunHiNeural",
+      "text": "그럼 대한민국 도로가 마비될걸? 영토가 넓어지고 인구가 늘어서 우리 대신 일할 대표를 뽑는 '대의 민주주의'가 시작된 거야!",
+      "board": {
+        "topic": "현대 민주주의의 특징 ①",
+        "title": "1. 대의 민주주의 (간접 민주주의)",
+        "icon": "🗳️",
+        "subtext": "영토 확대 & 인구 증가로 인한 대표 선출 제도",
+        "points": [
+          "선거를 통해 국민의 대표자(국회의원, 대통령 등)를 선출",
+          "대표자가 국민을 대신하여 법률 제정 및 국정 운영"
+        ]
+      },
+      "durationSec": 9.984,
+      "startSec": 9.156,
+      "endSec": 19.14,
+      "startFrame": 275,
+      "durationFrames": 300,
+      "endFrame": 575
+    },
+    {
+      "id": 3,
+      "audioFile": "audio_3.mp3",
+      "speaker": "yurim",
+      "speakerName": "유림",
+      "voice": "ko-KR-SunHiNeural",
+      "text": "게다가 복지와 안전처럼 정부가 할 일이 많아지고 전문성도 필요해지면서 '행정부의 역할'도 엄청 커졌지.",
+      "board": {
+        "topic": "현대 민주주의의 특징 ②",
+        "title": "2. 행정부의 역할 확대 (행정 국가화)",
+        "icon": "🏢",
+        "subtext": "복지 사회 요구 & 복잡한 사회 문제 해결",
+        "points": [
+          "국민 복지 증진과 안전 보장을 위한 국가 역할 증대",
+          "고도의 전문적 지식을 갖춘 행정부의 정책 결정권 강화"
+        ]
+      },
+      "durationSec": 7.872,
+      "startSec": 19.64,
+      "endSec": 27.512,
+      "startFrame": 589,
+      "durationFrames": 236,
+      "endFrame": 825
+    },
+    {
+      "id": 4,
+      "audioFile": "audio_4.mp3",
+      "speaker": "seojun",
+      "speakerName": "서준",
+      "voice": "ko-KR-InJoonNeural",
+      "text": "근데 우리가 뽑은 대표들이 우리 생각을 다 대변해주진 못하는 것 같아...",
+      "board": {
+        "topic": "현대 민주주의의 과제 ①",
+        "title": "3. 대의 민주주의의 한계",
+        "icon": "⚠️",
+        "subtext": "사회 다원화에 따른 국민 의사 왜곡 가능성",
+        "points": [
+          "국민 전체의 다양하고 상충되는 이익을 대의기관이 온전히 반영하지 못함",
+          "대표자가 국민의 뜻과 다른 결정을 내릴 위험성"
+        ]
+      },
+      "durationSec": 6.072,
+      "startSec": 28.012,
+      "endSec": 34.084,
+      "startFrame": 840,
+      "durationFrames": 182,
+      "endFrame": 1022
+    },
+    {
+      "id": 5,
+      "audioFile": "audio_5.mp3",
+      "speaker": "yurim",
+      "speakerName": "유림",
+      "voice": "ko-KR-SunHiNeural",
+      "text": "맞아! 사회가 너무 다양해져서 생기는 '대의제의 한계'야. 내 뜻이 안 통한다고 느끼면 '정치적 무관심'에 빠지기 쉽거든.",
+      "board": {
+        "topic": "현대 민주주의의 과제 ②",
+        "title": "3. 대의제의 한계 ➔ 정치적 무관심 초래",
+        "icon": "⚠️",
+        "subtext": "국민의 정치적 소외감과 참여 저하",
+        "points": [
+          "“내 한 표가 세상을 바꿀 수 없다”는 무력감 발생",
+          "투표율 하락 및 민주적 정당성 약화 위기"
+        ]
+      },
+      "durationSec": 9.936,
+      "startSec": 34.584,
+      "endSec": 44.52,
+      "startFrame": 1038,
+      "durationFrames": 298,
+      "endFrame": 1336
+    },
+    {
+      "id": 6,
+      "audioFile": "audio_6.mp3",
+      "speaker": "seojun",
+      "speakerName": "서준",
+      "voice": "ko-KR-InJoonNeural",
+      "text": "그렇다면 이 한계를 어떻게 극복해야 할까? 오늘 수업에서 함께 알아보자!",
+      "board": {
+        "topic": "오늘의 학습 과제",
+        "title": "4. 한계 극복 방안: 직접 참여 확대",
+        "icon": "💡",
+        "subtext": "스위스 란츠게마인데 & 전자 민주주의",
+        "points": [
+          "직접 민주주의 요소 보완: 국민투표, 국민발안, 국민소환",
+          "디지털 기술을 활용한 시민 참여 및 소통 활성화"
+        ]
+      },
+      "durationSec": 7.656,
+      "startSec": 45.02,
+      "endSec": 52.676,
+      "startFrame": 1351,
+      "durationFrames": 230,
+      "endFrame": 1581
+    }
+  ]
+}
