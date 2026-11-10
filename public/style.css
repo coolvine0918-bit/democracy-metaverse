@@ -1582,6 +1582,95 @@ html, body {
   font-weight: 700;
 }
 
+/* 실시간 접속 학생 관리 & 삭제 기능 */
+.student-mgmt-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.mgmt-subtitle {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.admin-student-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.admin-student-row {
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 10px;
+  padding: 8px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-student-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-student-name {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-student-meta {
+  font-size: 0.75rem;
+  color: #94a3b8;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.meta-loc-tag {
+  background: #1e293b;
+  padding: 2px 6px;
+  border-radius: 6px;
+  color: #60a5fa;
+}
+
+.meta-vote-tag {
+  font-weight: 700;
+}
+.meta-vote-tag.agree { color: #10b981; }
+.meta-vote-tag.disagree { color: #ef4444; }
+.meta-vote-tag.undecided { color: #64748b; }
+
+.btn-student-kick {
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid #ef4444;
+  color: #fca5a5;
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.btn-student-kick:hover, .btn-student-kick:active {
+  background: #ef4444;
+  color: #ffffff;
+}
+
 .speaker-queue-list {
   display: flex;
   flex-direction: column;

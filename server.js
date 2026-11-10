@@ -189,6 +189,28 @@ function getQuestProgressSummary() {
   return list;
 }
 
+// 접속 학생 목록 요약 (교사 관리자용 모니터링 & 학생 삭제 기능)
+function getConnectedStudentsList() {
+  const list = [];
+  for (const p of players.values()) {
+    if (!p.isAdmin) {
+      const cafe = p.cafeId ? MAP_CONFIG.cafes.find(c => c.id === p.cafeId) : null;
+      list.push({
+        id: p.id,
+        nickname: p.nickname,
+        className: p.className || gameState.currentClassName,
+        location: cafe ? cafe.name : '중앙 광장',
+        cafeId: p.cafeId,
+        vote: p.vote,
+        handRaised: p.handRaised,
+        hasBadge: p.hasBadge,
+        joinedAt: p.joinedAt
+      });
+    }
+  }
+  return list;
+}
+
 // ================= [수업 결과 엑셀(CSV) 다운로드 API] =================
 app.get('/api/export-results', (req, res) => {
   const targetClass = req.query.class || gameState.currentClassName || '1반';
@@ -230,15 +252,43 @@ io.on('connection', (socket) => {
   // 1. 플레이어 광장 입장 (학급 정보 포함)
   socket.on('joinPlaza', (data) => {
     const { nickname, characterIndex, className, isAdmin } = data || {};
-    const safeNick = (nickname || '학생_' + socket.id.slice(0, 4)).trim().slice(0, 12);
-    const safeClass = (className || gameState.currentClassName || '1반').trim();
-    const charIdx = Math.max(0, Math.min(4, parseInt(characterIndex) || 0));
+    
+    // 교사 관리자인 경우: 닉네임과 학급, 캐릭터를 전용 '선생님'으로 고정
+    let safeNick = (nickname || '학생_' + socket.id.slice(0, 4)).trim().slice(0, 12);
+    let safeClass = (className || gameState.currentClassName || '1반').trim();
+    let charIdx = Math.max(0, Math.min(4, parseInt(characterIndex) || 0));
 
-    // 중앙 광장 내 무작위 스폰 위치 설정
-    const spawnAngle = Math.random() * Math.PI * 2;
-    const spawnDist = 40 + Math.random() * 110;
-    const spawnX = Math.round(MAP_CONFIG.plaza.centerX + Math.cos(spawnAngle) * spawnDist);
-    const spawnY = Math.round(MAP_CONFIG.plaza.centerY + Math.sin(spawnAngle) * spawnDist);
+    if (isAdmin) {
+      safeNick = '선생님';
+      safeClass = '교사';
+      charIdx = 99; // 교사용 전용 캐릭터 고정 번호
+    } else {
+      // [학생 재접속/튕김 자동 정리]: 동일 닉네임의 기존 학생 세션이 남아있다면 중복 아바타 즉시 삭제
+      for (const [existingId, p] of players.entries()) {
+        if (existingId !== socket.id && !p.isAdmin && p.nickname === safeNick) {
+          console.log(`[중복/재접속 감지] 기존 세션(${existingId}, ${safeNick})을 새 세션(${socket.id})으로 교체합니다.`);
+          players.delete(existingId);
+          gameState.handRaiseQueue = gameState.handRaiseQueue.filter(i => i.socketId !== existingId);
+          const oldSock = io.sockets.sockets.get(existingId);
+          if (oldSock) {
+            try { oldSock.disconnect(true); } catch (e) {}
+          }
+          io.emit('playerLeft', { id: existingId, nickname: p.nickname });
+        }
+      }
+    }
+
+    // 중앙 광장 내 무작위 스폰 위치 설정 (교사는 광장 단상 정중앙 위치)
+    let spawnX, spawnY;
+    if (isAdmin) {
+      spawnX = MAP_CONFIG.plaza.centerX;
+      spawnY = MAP_CONFIG.plaza.centerY - 50;
+    } else {
+      const spawnAngle = Math.random() * Math.PI * 2;
+      const spawnDist = 50 + Math.random() * 110;
+      spawnX = Math.round(MAP_CONFIG.plaza.centerX + Math.cos(spawnAngle) * spawnDist);
+      spawnY = Math.round(MAP_CONFIG.plaza.centerY + Math.sin(spawnAngle) * spawnDist);
+    }
 
     const newPlayer = {
       id: socket.id,
@@ -284,13 +334,15 @@ io.on('connection', (socket) => {
       cafeStatus: computeCafeStatus(),
       handRaiseQueue: gameState.handRaiseQueue,
       noticeMaterials: NOTICE_MATERIALS,
-      questProgressList: getQuestProgressSummary()
+      questProgressList: getQuestProgressSummary(),
+      connectedStudents: getConnectedStudentsList()
     });
 
     socket.broadcast.emit('playerJoined', newPlayer);
     io.emit('voteTallyUpdated', computeVoteTally());
     io.emit('cafeStatusUpdated', computeCafeStatus());
     io.emit('questProgressUpdated', getQuestProgressSummary());
+    io.emit('studentListUpdated', getConnectedStudentsList());
   });
 
   // 2. 플레이어 이동 및 카페 정원(최대 4명) 판정
@@ -694,6 +746,8 @@ io.on('connection', (socket) => {
 
     const summonedPositions = [];
     for (const [id, player] of players.entries()) {
+      if (player.isAdmin) continue; // 교사는 소환 위치 이동에서 제외
+
       player.cafeId = null;
       const angle = Math.random() * Math.PI * 2;
       const radius = 50 + Math.random() * 150;
@@ -714,6 +768,7 @@ io.on('connection', (socket) => {
       players: summonedPositions
     });
     io.emit('cafeStatusUpdated', computeCafeStatus());
+    io.emit('studentListUpdated', getConnectedStudentsList());
   });
 
   // [투표 활성화 / 마감 토글]
@@ -760,6 +815,34 @@ io.on('connection', (socket) => {
       });
     }
     io.emit('handRaiseQueueUpdated', gameState.handRaiseQueue);
+    io.emit('studentListUpdated', getConnectedStudentsList());
+  });
+
+  // [학생 강제 퇴장 및 세션 삭제 (교사 전용) 🗑️]
+  socket.on('adminKickStudent', (data) => {
+    const { studentId } = data || {};
+    const target = players.get(studentId);
+    if (target && !target.isAdmin) {
+      console.log(`[교사 관리자] 학생 강제 삭제 및 퇴장 처리: ${target.nickname} (${studentId})`);
+      players.delete(studentId);
+      gameState.handRaiseQueue = gameState.handRaiseQueue.filter(item => item.socketId !== studentId);
+
+      // 대상 학생 소켓에 퇴장 이벤트 전송 후 연결 정리
+      const targetSocket = io.sockets.sockets.get(studentId);
+      if (targetSocket) {
+        targetSocket.emit('kickedByTeacher', {
+          message: '선생님에 의해 접속이 정리되었습니다. 다시 입장해 주세요!'
+        });
+        try { targetSocket.disconnect(true); } catch (e) {}
+      }
+
+      io.emit('playerLeft', { id: studentId, nickname: target.nickname });
+      io.emit('voteTallyUpdated', computeVoteTally());
+      io.emit('cafeStatusUpdated', computeCafeStatus());
+      io.emit('handRaiseQueueUpdated', gameState.handRaiseQueue);
+      io.emit('questProgressUpdated', getQuestProgressSummary());
+      io.emit('studentListUpdated', getConnectedStudentsList());
+    }
   });
 
   // 9. 연결 해제
@@ -775,6 +858,7 @@ io.on('connection', (socket) => {
       io.emit('cafeStatusUpdated', computeCafeStatus());
       io.emit('handRaiseQueueUpdated', gameState.handRaiseQueue);
       io.emit('questProgressUpdated', getQuestProgressSummary());
+      io.emit('studentListUpdated', getConnectedStudentsList());
     }
   });
 });

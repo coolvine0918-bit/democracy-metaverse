@@ -458,7 +458,18 @@
           </div>
         </div>
 
-        <!-- 4. 학생별 미션 달성 & 배지 수여 현황 모니터링 (신규) -->
+        <!-- 4. 실시간 접속 학생 관리 & 중복/튕김 학생 삭제 (신규) -->
+        <div class="admin-section student-mgmt-section">
+          <div class="student-mgmt-header">
+            <h4>👥 실시간 접속 학생 관리 (<span id="adminStudentCount">0</span>명)</h4>
+            <span class="mgmt-subtitle">튕김·중복 아바타 즉시 삭제 및 정리</span>
+          </div>
+          <div id="adminStudentList" class="admin-student-list">
+            <div class="empty-notice">현재 접속 중인 학생이 없습니다.</div>
+          </div>
+        </div>
+
+        <!-- 5. 학생별 미션 달성 & 배지 수여 현황 모니터링 -->
         <div class="admin-section">
           <h4>🏅 학생별 미션 및 배지 현황 (<span id="adminBadgeAwardCount">0</span>명 배지 획득)</h4>
           <div id="studentQuestMonitoringList" class="student-quest-list">
@@ -466,7 +477,7 @@
           </div>
         </div>
 
-        <!-- 5. 발언 신청자 대기열 (✋) -->
+        <!-- 6. 발언 신청자 대기열 (✋) -->
         <div class="admin-section">
           <h4>✋ 발언 신청 대기열 (<span id="handCount">0</span>명)</h4>
           <div id="speakerQueueList" class="speaker-queue-list">
@@ -474,7 +485,7 @@
           </div>
         </div>
 
-        <!-- 6. 7개 소회의실(카페) 학생 분포 모니터링 -->
+        <!-- 7. 7개 소회의실(카페) 학생 분포 모니터링 -->
         <div class="admin-section">
           <h4>☕ 7개 소회의실(카페) 정원 현황 (최대 4명)</h4>
           <div id="cafeMonitoringGrid" class="cafe-grid">

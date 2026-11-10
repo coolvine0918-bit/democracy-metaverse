@@ -143,6 +143,8 @@
   const handCount = document.getElementById('handCount');
   const cafeMonitoringGrid = document.getElementById('cafeMonitoringGrid');
   const studentQuestMonitoringList = document.getElementById('studentQuestMonitoringList');
+  const adminStudentCount = document.getElementById('adminStudentCount');
+  const adminStudentList = document.getElementById('adminStudentList');
 
   // --- 에셋 이미지 로드 ---
   const townTilesImg = new Image();
@@ -299,8 +301,20 @@
     initSocket(nick, selectedCharacterIndex, userClass);
   }
 
+  // --- [교사 관리자 (?admin=true) 전용]: 학생 로그인 모달 건너뛰고 즉시 교사로 다이렉트 입장! ---
+  if (isAdmin) {
+    loginModal.classList.add('hidden');
+    bottomActionBar.classList.remove('hidden');
+    adminContainer.classList.remove('hidden');
+    adminPanel.classList.remove('closed'); // 관리자 콘솔 바로 오픈
+    isJoined = true;
+    startBgm();
+    initSocket('선생님', 99, '교사');
+  }
+
   // --- 4. Socket.io 통신 및 이벤트 등록 ---
   function initSocket(nickname, characterIndex, className) {
+    if (socket) return; // 중복 연결 방지
     socket = io();
 
     socket.on('connect', () => {
@@ -347,6 +361,7 @@
       updateCafeMonitoringUI(data.cafeStatus);
       updateSpeakerQueueUI(data.handRaiseQueue);
       updateStudentQuestMonitoringUI(data.questProgressList);
+      updateAdminStudentList(data.connectedStudents);
 
       if (data.agenda && data.agenda.active && data.agenda.text) {
         showPinnedAgenda(data.agenda.text);
@@ -596,6 +611,17 @@
 
     socket.on('questProgressUpdated', (list) => {
       updateStudentQuestMonitoringUI(list);
+    });
+
+    socket.on('studentListUpdated', (list) => {
+      updateAdminStudentList(list);
+    });
+
+    socket.on('kickedByTeacher', (data) => {
+      alert(data.message || '선생님에 의해 접속이 정리되었습니다. 다시 입장해 주세요!');
+      isJoined = false;
+      loginModal.classList.remove('hidden');
+      bottomActionBar.classList.add('hidden');
     });
 
     socket.on('chatBroadcast', (msg) => {
@@ -1266,6 +1292,72 @@
     });
   }
 
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function updateAdminStudentList(list) {
+    if (!list || !adminStudentList) return;
+    if (adminStudentCount) adminStudentCount.textContent = list.length;
+    adminStudentList.innerHTML = '';
+
+    if (list.length === 0) {
+      adminStudentList.innerHTML = '<div class="empty-notice">현재 접속 중인 학생이 없습니다.</div>';
+      return;
+    }
+
+    list.forEach(student => {
+      const row = document.createElement('div');
+      row.className = 'admin-student-row';
+
+      let voteLabel = '미투표 ⏳';
+      let voteClass = 'undecided';
+      if (student.vote === 'agree') {
+        voteLabel = '찬성 ✅';
+        voteClass = 'agree';
+      } else if (student.vote === 'disagree') {
+        voteLabel = '반대 ❌';
+        voteClass = 'disagree';
+      }
+
+      row.innerHTML = `
+        <div class="admin-student-info">
+          <span style="font-size: 1.1rem;">${student.hasBadge ? '🏅' : '👤'}</span>
+          <div>
+            <div class="admin-student-name">[${escapeHtml(student.className)}] ${escapeHtml(student.nickname)}</div>
+            <div class="admin-student-meta">
+              <span class="meta-loc-tag">${escapeHtml(student.location)}</span>
+              <span class="meta-vote-tag ${voteClass}">${voteLabel}</span>
+            </div>
+          </div>
+        </div>
+        <button class="btn-student-kick" data-id="${student.id}" data-name="${escapeHtml(student.nickname)}" title="튕김/중복 학생 퇴장 및 세션 삭제">
+          🗑️ 삭제
+        </button>
+      `;
+
+      const btnKick = row.querySelector('.btn-student-kick');
+      btnKick.addEventListener('click', () => {
+        const targetId = btnKick.getAttribute('data-id');
+        const targetName = btnKick.getAttribute('data-name');
+        if (confirm(`'${targetName}' 학생을 퇴장 및 삭제하시겠습니까?\n(튕겨서 중복되었거나 비정상 세션인 경우 정리되며, 학생은 다시 정상 입장할 수 있습니다)`)) {
+          if (socket) {
+            socket.emit('adminKickStudent', { studentId: targetId });
+            showToast(`'${targetName}' 학생을 퇴장 및 삭제 처리했습니다.`, '🗑️');
+          }
+        }
+      });
+
+      adminStudentList.appendChild(row);
+    });
+  }
+
   // --- 13. 안건 배너 & 토스트 ---
   let agendaTimer = null;
   function showBigAgendaBanner(text) {
@@ -1753,6 +1845,11 @@
   ];
 
   function drawCharacter(p, isMe) {
+    if (p.isAdmin || p.characterIndex === 99) {
+      drawTeacherCharacter(p, isMe);
+      return;
+    }
+
     const x = Math.round(p.x);
     const y = Math.round(p.y);
     const cIdx = Math.max(0, Math.min(4, p.characterIndex || 0));
@@ -1849,6 +1946,145 @@
 
         ctx.fillStyle = '#0f172a';
         ctx.fillText(p.speechText.slice(0, 16) + (p.speechText.length > 16 ? '...' : ''), x, bY + bubbleH / 2);
+      }
+    }
+  }
+
+  // --- [교사 전용 고정 캐릭터 렌더링]: 네이비 정장 수트 + 넥타이 + 출석 태블릿 + 황금 아우라 ---
+  function drawTeacherCharacter(p, isMe) {
+    const x = Math.round(p.x);
+    const y = Math.round(p.y);
+    const bob = p.isMoving ? Math.sin(p.walkCycle) * 3 : 0;
+
+    // 1. 발 밑 교사용 황금 단상 아우라 링 (Golden Podium Aura)
+    ctx.strokeStyle = '#f59e0b';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.ellipse(x, y + 2, 22, 9, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(245, 158, 11, 0.22)';
+    ctx.fill();
+
+    // 2. 바닥 그림자
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+    ctx.beginPath();
+    ctx.ellipse(x, y + 2, 16, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 3. 교사 고정 수트 본체 (클래식 네이비 수트 & 레드 타이)
+    ctx.fillStyle = '#1e3a8a'; // 네이비 자켓
+    drawRoundRect(ctx, x - 12, y - 20 + bob, 24, 18, 6);
+    ctx.fill();
+
+    // 화이트 셔츠 깃
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(x - 5, y - 20 + bob);
+    ctx.lineTo(x + 5, y - 20 + bob);
+    ctx.lineTo(x, y - 13 + bob);
+    ctx.closePath();
+    ctx.fill();
+
+    // 와인 레드 넥타이
+    ctx.fillStyle = '#dc2626';
+    ctx.beginPath();
+    ctx.moveTo(x - 2, y - 18 + bob);
+    ctx.lineTo(x + 2, y - 18 + bob);
+    ctx.lineTo(x + 3, y - 9 + bob);
+    ctx.lineTo(x, y - 6 + bob);
+    ctx.lineTo(x - 3, y - 9 + bob);
+    ctx.closePath();
+    ctx.fill();
+
+    // 황금 단추
+    ctx.fillStyle = '#fbbf24';
+    ctx.beginPath();
+    ctx.arc(x, y - 9 + bob, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 손에 든 교사용 출석 태블릿/클립보드 (📋)
+    ctx.fillStyle = '#0f172a';
+    drawRoundRect(ctx, x + 9, y - 16 + bob, 8, 12, 2);
+    ctx.fill();
+    ctx.fillStyle = '#38bdf8';
+    ctx.fillRect(x + 10, y - 14 + bob, 6, 8);
+
+    // 얼굴 피부톤
+    ctx.fillStyle = '#fed7aa';
+    ctx.beginPath();
+    ctx.arc(x, y - 26 + bob, 10, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 단정한 선생님 헤어스타일
+    ctx.fillStyle = '#334155';
+    ctx.beginPath();
+    ctx.arc(x, y - 29 + bob, 10, Math.PI * 0.9, Math.PI * 2.1);
+    ctx.fill();
+
+    // 지적인 검은 뿔테 안경 👓
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(x - 6, y - 28 + bob, 4, 3);
+    ctx.strokeRect(x + 2, y - 28 + bob, 4, 3);
+    ctx.beginPath();
+    ctx.moveTo(x - 2, y - 27 + bob);
+    ctx.lineTo(x + 2, y - 27 + bob);
+    ctx.stroke();
+
+    // 4. 머리 위 교사 전용 명찰 (로열 퍼플 & 골드 테두리)
+    const tagText = '👑 [교사] 선생님 🧑‍🏫';
+    ctx.font = 'bold 12px sans-serif';
+    const textWidth = ctx.measureText(tagText).width;
+    const badgeW = textWidth + 18;
+    const badgeH = 22;
+    const badgeY = y - 56 + bob;
+
+    ctx.fillStyle = 'rgba(88, 28, 135, 0.95)'; // 로열 퍼플
+    drawRoundRect(ctx, x - badgeW / 2, badgeY, badgeW, badgeH, 11);
+    ctx.fill();
+    ctx.strokeStyle = '#fbbf24'; // 골드 테두리
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.fillStyle = '#fef08a';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(tagText, x, badgeY + badgeH / 2);
+
+    // 5. 교사 말풍선 및 상태 이모지
+    const emoji = p.statusEmoji;
+    if (emoji) {
+      const emojiY = badgeY - 18;
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+      ctx.beginPath();
+      ctx.arc(x, emojiY + 2, 12, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      ctx.font = '14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(emoji, x, emojiY + 3);
+
+      if (emoji === '💬' && p.speechText) {
+        ctx.font = '12px sans-serif';
+        const msgW = ctx.measureText(p.speechText).width;
+        const bubbleW = Math.min(240, msgW + 16);
+        const bubbleH = 26;
+        const bX = x - bubbleW / 2;
+        const bY = emojiY - 32;
+
+        ctx.fillStyle = '#ffffff';
+        drawRoundRect(ctx, bX, bY, bubbleW, bubbleH, 13);
+        ctx.fill();
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.fillStyle = '#0f172a';
+        ctx.fillText(p.speechText.slice(0, 18) + (p.speechText.length > 18 ? '...' : ''), x, bY + bubbleH / 2);
       }
     }
   }
