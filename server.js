@@ -278,11 +278,11 @@ io.on('connection', (socket) => {
       }
     }
 
-    // 중앙 광장 내 무작위 스폰 위치 설정 (교사는 광장 단상 정중앙 위치)
+    // 중앙 광장 내 스폰 위치 설정 (교사는 북쪽 단상 앞 넓고 트인 위치)
     let spawnX, spawnY;
     if (isAdmin) {
-      spawnX = MAP_CONFIG.plaza.centerX;
-      spawnY = MAP_CONFIG.plaza.centerY - 50;
+      spawnX = MAP_CONFIG.plaza.centerX; // 1200
+      spawnY = 740; // 투표함(840)과 충분히 떨어진 넓은 단상 위치 (충돌 방지)
     } else {
       const spawnAngle = Math.random() * Math.PI * 2;
       const spawnDist = 50 + Math.random() * 110;

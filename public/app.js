@@ -722,9 +722,12 @@
   }
 
   function isColliding(x, y, radius = 14) {
-    // 맵 외곽 경계
+    // 맵 외곽 경계 (공통 통과 불가)
     if (x - radius < 30 || x + radius > mapConfig.width - 30) return true;
     if (y - radius < 30 || y + radius > mapConfig.height - 30) return true;
+
+    // 교사(Admin)는 전체 수업 지도 및 카페 순회를 위해 오브젝트/바리케이드에 끼이지 않고 자유 이동 가능
+    if (isAdmin || (myPlayer && myPlayer.isAdmin)) return false;
 
     const obstacles = getObstacles();
     for (const obs of obstacles) {
@@ -1071,11 +1074,59 @@
     tapMove.targetY = worldY;
   }, { passive: true });
 
-  window.addEventListener('keydown', (e) => {
-    if (keys.hasOwnProperty(e.code)) keys[e.code] = true;
+  // [노트북/데스크톱 마우스 클릭 이동 지원]
+  canvas.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return; // 마우스 좌클릭만 반응
+    const worldX = Math.round(e.clientX + camera.x - screenWidth / 2);
+    const worldY = Math.round(e.clientY + camera.y - screenHeight / 2);
+
+    tapMove.active = true;
+    tapMove.targetX = worldX;
+    tapMove.targetY = worldY;
   });
-  window.addEventListener('keyup', (e) => {
-    if (keys.hasOwnProperty(e.code)) keys[e.code] = false;
+
+  // [노트북 키보드 조작 처리]: 방향키(↑↓←→), WASD, 한글 ㅈ/ㄴ/ㅁ/ㅇ 및 브라우저 스크롤 방지
+  function handleKeyEvent(e, isDown) {
+    const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
+    if (activeTag === 'input' || activeTag === 'textarea' || activeTag === 'select') return;
+
+    const code = e.code || '';
+    const key = e.key || '';
+    let handled = false;
+
+    if (code === 'ArrowUp' || key === 'ArrowUp' || key === 'Up' || code === 'KeyW' || key === 'w' || key === 'W' || key === 'ㅈ') {
+      keys.ArrowUp = isDown;
+      keys.KeyW = isDown;
+      handled = true;
+    }
+    if (code === 'ArrowDown' || key === 'ArrowDown' || key === 'Down' || code === 'KeyS' || key === 's' || key === 'S' || key === 'ㄴ') {
+      keys.ArrowDown = isDown;
+      keys.KeyS = isDown;
+      handled = true;
+    }
+    if (code === 'ArrowLeft' || key === 'ArrowLeft' || key === 'Left' || code === 'KeyA' || key === 'a' || key === 'A' || key === 'ㅁ') {
+      keys.ArrowLeft = isDown;
+      keys.KeyA = isDown;
+      handled = true;
+    }
+    if (code === 'ArrowRight' || key === 'ArrowRight' || key === 'Right' || code === 'KeyD' || key === 'd' || key === 'D' || key === 'ㅇ') {
+      keys.ArrowRight = isDown;
+      keys.KeyD = isDown;
+      handled = true;
+    }
+
+    if (handled) {
+      if (isDown) {
+        tapMove.active = false;
+        e.preventDefault(); // 방향키에 의한 브라우저 스크롤/버튼 이동 방지!
+      }
+    }
+  }
+
+  window.addEventListener('keydown', (e) => handleKeyEvent(e, true));
+  window.addEventListener('keyup', (e) => handleKeyEvent(e, false));
+  window.addEventListener('blur', () => {
+    for (const k in keys) keys[k] = false;
   });
 
   initJoystick();
