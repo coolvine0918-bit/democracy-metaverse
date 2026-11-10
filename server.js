@@ -26,7 +26,6 @@ const MAP_CONFIG = {
     centerY: 920,
     radius: 300
   },
-  // 광장 핵심 오브젝트 (투표함 및 자치 게시판)
   ballotBox: {
     x: 1200,
     y: 840,
@@ -73,9 +72,12 @@ const NOTICE_MATERIALS = {
   }
 };
 
-// 서버 상태
+// 서버 상태 및 학급(Class) 관리
 const players = new Map(); // socket.id -> player state
+const classSessionHistory = []; // 지난 학급 수업 결과 아카이브 목록
+
 const gameState = {
+  currentClassName: '1반', // 현재 진행 중인 학급명
   agenda: {
     id: 1,
     text: "안건 1: 소년범죄 증가에 따라 '촉법소년' 제도를 완전히 폐지하고 성인과 동일하게 처벌해야 하는가?",
@@ -83,7 +85,7 @@ const gameState = {
     timestamp: Date.now()
   },
   voteActive: false,
-  handRaiseQueue: [] // [{ socketId, nickname, time }]
+  handRaiseQueue: []
 };
 
 // 카페 내 인원 수 확인 함수
@@ -135,7 +137,8 @@ function computeVoteTally() {
     undecided,
     totalStudents,
     badgeCount,
-    voteActive: gameState.voteActive
+    voteActive: gameState.voteActive,
+    currentClassName: gameState.currentClassName
   };
 }
 
@@ -159,7 +162,7 @@ function computeCafeStatus() {
   });
 }
 
-// 학생별 퀘스트 진행도 계산 헬퍼
+// 학생별 퀘스트 진행도 및 투표 결과 데이터 요약
 function getQuestProgressSummary() {
   const list = [];
   for (const p of players.values()) {
@@ -173,24 +176,62 @@ function getQuestProgressSummary() {
 
       list.push({
         id: p.id,
+        className: p.className || gameState.currentClassName,
         nickname: p.nickname,
         completedCount,
         hasBadge: p.hasBadge,
-        vote: p.vote
+        vote: p.vote,
+        quest: p.quest,
+        joinedAt: p.joinedAt
       });
     }
   }
   return list;
 }
 
+// ================= [수업 결과 엑셀(CSV) 다운로드 API] =================
+app.get('/api/export-results', (req, res) => {
+  const targetClass = req.query.class || gameState.currentClassName || '1반';
+  const rows = [
+    ['학급', '학생이름', '최종투표', '미션1(안건확인)', '미션2(자료조사)', '미션3(카페토론회수)', '미션4(비밀투표)', '배지획득여부', '안건내용', '접속일시']
+  ];
+
+  for (const p of players.values()) {
+    if (!p.isAdmin) {
+      if (targetClass === 'all' || p.className === targetClass || !p.className) {
+        rows.push([
+          p.className || targetClass,
+          p.nickname,
+          p.vote === 'agree' ? '찬성' : (p.vote === 'disagree' ? '반대' : '미투표'),
+          p.quest.m1 ? '완료' : '미완료',
+          p.quest.m2 ? '완료' : '미완료',
+          `${p.quest.m3 || 0}회`,
+          p.quest.m4 ? '완료' : '미완료',
+          p.hasBadge ? '🏅 획득' : '미획득',
+          gameState.agenda.text,
+          new Date(p.joinedAt || Date.now()).toLocaleTimeString('ko-KR')
+        ]);
+      }
+    }
+  }
+
+  // UTF-8 BOM (\uFEFF) 추가로 엑셀 한글 깨짐 방지
+  const csvContent = '\uFEFF' + rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const filename = encodeURIComponent(`직접민주주의_수업결과_${targetClass}_${new Date().toISOString().slice(0, 10)}.csv`);
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${filename}`);
+  res.send(csvContent);
+});
+
 // 소켓 연결 핸들러
 io.on('connection', (socket) => {
   console.log(`[접속] 새 클라이언트 연결: ${socket.id}`);
 
-  // 1. 플레이어 광장 입장
+  // 1. 플레이어 광장 입장 (학급 정보 포함)
   socket.on('joinPlaza', (data) => {
-    const { nickname, characterIndex, isAdmin } = data || {};
+    const { nickname, characterIndex, className, isAdmin } = data || {};
     const safeNick = (nickname || '학생_' + socket.id.slice(0, 4)).trim().slice(0, 12);
+    const safeClass = (className || gameState.currentClassName || '1반').trim();
     const charIdx = Math.max(0, Math.min(4, parseInt(characterIndex) || 0));
 
     // 중앙 광장 내 무작위 스폰 위치 설정
@@ -201,6 +242,7 @@ io.on('connection', (socket) => {
 
     const newPlayer = {
       id: socket.id,
+      className: safeClass,
       nickname: safeNick,
       characterIndex: charIdx,
       x: spawnX,
@@ -209,18 +251,19 @@ io.on('connection', (socket) => {
       statusEmoji: '',
       speechText: '',
       speechUntil: 0,
-      cafeId: null, // null = 중앙 광장
+      cafeId: null,
       vote: null,
       handRaised: false,
       hasBadge: false,
+      joinedAt: Date.now(),
       quest: {
-        m1: false, // 안건 확인
-        m2: false, // 자료 열람
-        m3: 0,     // 카페 토론 발언 횟수 (목표: 2회)
-        m4: false  // 투표함에 투표용지 투입
+        m1: false,
+        m2: false,
+        m3: 0,
+        m4: false
       },
       inventory: [
-        { id: 'id_card', name: '시민 신분증', icon: '🪪', desc: '직접민주주의 총회 참여 시민증' },
+        { id: 'id_card', name: '시민 신분증', icon: '🪪', desc: `${safeClass} 소속 시민 신분증` },
         { id: 'agree_ballot', name: '찬성 투표용지', icon: '📜', type: 'ballot', voteChoice: 'agree', desc: '안건 찬성 표결용 용지 (투표함에 드래그 투입)' },
         { id: 'disagree_ballot', name: '반대 투표용지', icon: '📜', type: 'ballot', voteChoice: 'disagree', desc: '안건 반대 표결용 용지 (투표함에 드래그 투입)' },
         { id: 'debate_notes', name: '토론 노트', icon: '📔', desc: '조례안 쟁점 요약 수첩' }
@@ -230,9 +273,9 @@ io.on('connection', (socket) => {
 
     players.set(socket.id, newPlayer);
 
-    // 접속한 클라이언트에게 초기화 정보 전송
     socket.emit('initSuccess', {
       myId: socket.id,
+      currentClassName: gameState.currentClassName,
       mapConfig: MAP_CONFIG,
       players: Array.from(players.values()),
       agenda: gameState.agenda,
@@ -244,7 +287,6 @@ io.on('connection', (socket) => {
       questProgressList: getQuestProgressSummary()
     });
 
-    // 다른 모든 플레이어에게 새 접속자 알림
     socket.broadcast.emit('playerJoined', newPlayer);
     io.emit('voteTallyUpdated', computeVoteTally());
     io.emit('cafeStatusUpdated', computeCafeStatus());
@@ -260,14 +302,12 @@ io.on('connection', (socket) => {
     const clampedX = Math.max(50, Math.min(MAP_CONFIG.width - 50, x));
     const clampedY = Math.max(50, Math.min(MAP_CONFIG.height - 50, y));
 
-    // 진입하려는 위치의 카페 판정
     const targetCafe = findCafeAtPosition(clampedX, clampedY);
 
     if (targetCafe) {
       if (player.cafeId !== targetCafe.id) {
         const currentCount = getCafeOccupants(targetCafe.id, socket.id);
         if (currentCount >= targetCafe.max) {
-          // 정원 초과! 입구 밖으로 밀어냄
           const angleFromCenter = Math.atan2(clampedY - targetCafe.y, clampedX - targetCafe.x);
           const bounceDistance = Math.max(targetCafe.w, targetCafe.h) / 2 + 60;
           const bounceX = Math.round(targetCafe.x + Math.cos(angleFromCenter) * bounceDistance);
@@ -296,7 +336,6 @@ io.on('connection', (socket) => {
           return;
         }
 
-        // 정상 입장
         player.cafeId = targetCafe.id;
         socket.emit('cafeEntered', {
           cafeId: targetCafe.id,
@@ -307,7 +346,6 @@ io.on('connection', (socket) => {
         io.emit('cafeStatusUpdated', computeCafeStatus());
       }
     } else {
-      // 카페 구역 밖 (중앙 광장)
       if (player.cafeId !== null) {
         player.cafeId = null;
         socket.emit('cafeExited');
@@ -328,7 +366,7 @@ io.on('connection', (socket) => {
     });
   });
 
-  // 3. 채팅 메시지 및 카페 토론 미션(Quest M3) 카운트
+  // 3. 채팅 메시지 및 카페 토론 미션 카운트
   socket.on('chatMessage', (data) => {
     const player = players.get(socket.id);
     if (!player) return;
@@ -341,7 +379,6 @@ io.on('connection', (socket) => {
     player.speechUntil = now + 4000;
     player.statusEmoji = '💬';
 
-    // 카페 안에서 발언 시 미션 3(토론 참여) 카운트 증가
     if (player.cafeId !== null && player.quest.m3 < 2) {
       player.quest.m3++;
       socket.emit('questUpdated', {
@@ -354,6 +391,7 @@ io.on('connection', (socket) => {
 
     const msgPayload = {
       senderId: player.id,
+      className: player.className,
       nickname: player.nickname,
       characterIndex: player.characterIndex,
       text,
@@ -404,7 +442,7 @@ io.on('connection', (socket) => {
     }, 4000);
   });
 
-  // 4. [인벤토리 투표용지 -> 투표함 투입 로직 (Quest M4 & Item Drag)]
+  // 4. 인벤토리 투표용지 -> 투표함 투입 로직
   socket.on('submitBallotToBox', (data) => {
     const player = players.get(socket.id);
     if (!player) return;
@@ -414,14 +452,13 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // 투표함 근처(거리 180 이내)인지 확인
     const dist = Math.hypot(player.x - MAP_CONFIG.ballotBox.x, player.y - MAP_CONFIG.ballotBox.y);
     if (dist > 220) {
       socket.emit('systemNotification', { message: '광장 중앙의 [투표함 🗳️] 앞으로 다가가서 투표용지를 넣어주세요!', type: 'warn' });
       return;
     }
 
-    const { choice } = data; // 'agree' | 'disagree'
+    const { choice } = data;
     if (choice === 'agree') {
       player.vote = 'agree';
       player.statusEmoji = '✅';
@@ -430,11 +467,9 @@ io.on('connection', (socket) => {
       player.statusEmoji = '❌';
     }
 
-    // 미션 4 달성
     player.quest.m4 = true;
     checkBadgeAward(player, socket);
 
-    // 투표함 투입 애니메이션 브로드캐스트
     io.emit('ballotSubmittedEffect', {
       studentId: player.id,
       nickname: player.nickname,
@@ -457,12 +492,12 @@ io.on('connection', (socket) => {
     });
   });
 
-  // 5. 일반 찬반 버튼 투표 (기존 UI 호환)
+  // 5. 일반 찬반 버튼 투표
   socket.on('vote', (data) => {
     const player = players.get(socket.id);
     if (!player) return;
 
-    const { choice } = data; // 'agree' | 'disagree' | 'cancel'
+    const { choice } = data;
     if (choice === 'agree') {
       player.vote = 'agree';
       player.statusEmoji = '✅';
@@ -488,7 +523,7 @@ io.on('connection', (socket) => {
     io.emit('questProgressUpdated', getQuestProgressSummary());
   });
 
-  // 6. [퀘스트 미션 달성 이벤트]
+  // 6. 퀘스트 단계 완료
   socket.on('completeQuestStep', (data) => {
     const player = players.get(socket.id);
     if (!player) return;
@@ -506,13 +541,11 @@ io.on('connection', (socket) => {
     io.emit('questProgressUpdated', getQuestProgressSummary());
   });
 
-  // 배지 수여 판정 로직
   function checkBadgeAward(player, pSocket) {
     if (player.hasBadge) return;
     const q = player.quest;
     if (q.m1 && q.m2 && q.m3 >= 2 && q.m4) {
       player.hasBadge = true;
-      // 인벤토리에 배지 아이템 추가
       player.inventory.push({
         id: 'citizen_badge',
         name: '민주 시민 배지',
@@ -533,7 +566,7 @@ io.on('connection', (socket) => {
     }
   }
 
-  // 7. [실시간 멀티플레이어 MMO 인터랙션: 하이파이브, 귓속말]
+  // 7. 실시간 멀티플레이어 MMO 인터랙션
   socket.on('interactPlayer', (data) => {
     const sender = players.get(socket.id);
     if (!sender) return;
@@ -543,7 +576,6 @@ io.on('connection', (socket) => {
     if (!target) return;
 
     if (action === 'highfive') {
-      // 하이파이브 👋
       io.to(targetId).emit('interactionReceived', {
         fromId: sender.id,
         fromNickname: sender.nickname,
@@ -554,10 +586,8 @@ io.on('connection', (socket) => {
         message: `${target.nickname}님과 하이파이브를 나눴습니다! 짝! 👏`,
         type: 'info'
       });
-      // 두 플레이어 위치에 이모지 효과
       io.emit('spawnEmojiEffect', { x: target.x, y: target.y - 30, emoji: '👋' });
     } else if (action === 'whisper') {
-      // 귓속말 💬
       const cleanText = (text || '').trim().slice(0, 60);
       if (!cleanText) return;
 
@@ -573,7 +603,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // 8. 발언 신청 (✋ 토글)
+  // 8. 발언 신청
   socket.on('raiseHand', () => {
     const player = players.get(socket.id);
     if (!player) return;
@@ -604,6 +634,44 @@ io.on('connection', (socket) => {
   });
 
   // ================= 교사 관리자(Admin) 전용 이벤트 =================
+
+  // [새 학급 수업 시작 (원터치 전체 리셋) 🧹]
+  socket.on('adminStartNewClass', (data) => {
+    const newClass = (data.newClassName || '다음 반').trim();
+    console.log(`[교사 관리자] 새 학급 수업 시작: ${newClass}`);
+
+    // 이전 반 결과 아카이브 보관
+    classSessionHistory.push({
+      className: gameState.currentClassName,
+      agenda: gameState.agenda.text,
+      timestamp: Date.now(),
+      students: getQuestProgressSummary()
+    });
+
+    gameState.currentClassName = newClass;
+    gameState.voteActive = false;
+    gameState.handRaiseQueue = [];
+
+    // 접속 중인 모든 학생 상태 리셋
+    for (const player of players.values()) {
+      player.className = newClass;
+      player.vote = null;
+      player.statusEmoji = '';
+      player.handRaised = false;
+      player.hasBadge = false;
+      player.speechText = '';
+      player.quest = { m1: false, m2: false, m3: 0, m4: false };
+    }
+
+    io.emit('classSessionReset', {
+      newClassName: newClass,
+      message: `선생님이 새 학급 [${newClass}] 수업을 시작하여 전체가 초기화되었습니다! 🔔`
+    });
+    io.emit('voteTallyUpdated', computeVoteTally());
+    io.emit('allPlayerStatusesReset');
+    io.emit('questProgressUpdated', getQuestProgressSummary());
+    io.emit('handRaiseQueueUpdated', gameState.handRaiseQueue);
+  });
 
   // [안건 송출]
   socket.on('adminSetAgenda', (data) => {
@@ -717,5 +785,6 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`🏛️ 중학교 사회 수업용 2D 메타버스 서버 실행 완료!`);
   console.log(`🌐 학생 접속 주소: http://localhost:${PORT}`);
   console.log(`👨‍🏫 교사 관리자 주소: http://localhost:${PORT}/?admin=true`);
+  console.log(`📊 수업 결과 엑셀 다운로드: http://localhost:${PORT}/api/export-results`);
   console.log('========================================================');
 });

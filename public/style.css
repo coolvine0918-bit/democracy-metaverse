@@ -103,6 +103,31 @@ html, body {
   color: #cbd5e1;
 }
 
+.form-row-group {
+  display: flex;
+  gap: 10px;
+}
+
+.flex-1 { flex: 1; }
+.flex-2 { flex: 2; }
+
+.form-group select {
+  width: 100%;
+  height: 52px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 2px solid #334155;
+  background: #0f172a;
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 700;
+  outline: none;
+}
+
+.form-group select:focus {
+  border-color: #3b82f6;
+}
+
 .form-group input {
   width: 100%;
   height: 52px;
@@ -1327,6 +1352,70 @@ html, body {
   font-size: 0.9rem;
   font-weight: 800;
   color: #cbd5e1;
+}
+
+/* 학급 관리 & 결과 리포트 */
+.class-mgmt-section {
+  border: 2px solid #3b82f6;
+  background: rgba(30, 58, 138, 0.25);
+}
+
+.class-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.active-class-pill {
+  background: #3b82f6;
+  color: #ffffff;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.class-actions-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.btn-class-act {
+  border: none;
+  border-radius: 14px;
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  color: #ffffff;
+  cursor: pointer;
+  text-align: center;
+}
+
+.btn-class-act:active {
+  transform: scale(0.97);
+}
+
+.btn-export-excel {
+  background: linear-gradient(135deg, #10b981, #047857);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.btn-new-class {
+  background: linear-gradient(135deg, #ef4444, #b91c1c);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+}
+
+.btn-class-act b {
+  font-size: 0.85rem;
+}
+
+.btn-class-act small {
+  font-size: 0.65rem;
+  opacity: 0.85;
 }
 
 .quick-agenda-list {

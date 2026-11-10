@@ -22,9 +22,24 @@
         <p>우리 마을의 중요한 안건을 토론하고 직접 투표해 보세요!</p>
       </div>
 
-      <div class="form-group">
-        <label for="inputNickname">학생 이름 (출석번호 또는 이름)</label>
-        <input type="text" id="inputNickname" maxlength="10" placeholder="예: 1번 김민주" autofocus autocomplete="off">
+      <div class="form-row-group">
+        <div class="form-group flex-1">
+          <label for="selectClass">학급 (반)</label>
+          <select id="selectClass">
+            <option value="1반" selected>1반</option>
+            <option value="2반">2반</option>
+            <option value="3반">3반</option>
+            <option value="4반">4반</option>
+            <option value="5반">5반</option>
+            <option value="6반">6반</option>
+            <option value="7반">7반</option>
+            <option value="8반">8반</option>
+          </select>
+        </div>
+        <div class="form-group flex-2">
+          <label for="inputNickname">학생 이름 (출석번호 또는 이름)</label>
+          <input type="text" id="inputNickname" maxlength="10" placeholder="예: 1번 김민주" autofocus autocomplete="off">
+        </div>
       </div>
 
       <div class="form-group">
@@ -359,6 +374,26 @@
       </div>
 
       <div class="admin-body">
+        <!-- 0. 학급 관리 & 결과 리포트 섹션 -->
+        <div class="admin-section class-mgmt-section">
+          <div class="class-header-row">
+            <h4>🏫 수업 학급 관리 & 결과 리포트</h4>
+            <div class="active-class-pill">
+              현재 학급: <span id="currentAdminClassName">1반</span>
+            </div>
+          </div>
+          <div class="class-actions-row">
+            <button id="btnExportClassResults" class="btn-class-act btn-export-excel" title="엑셀 CSV 다운로드">
+              📥 <b>수업 결과 엑셀(CSV) 저장</b>
+              <small>찬반 결과 및 미션 수행 채점표 다운로드</small>
+            </button>
+            <button id="btnStartNewClassSession" class="btn-class-act btn-new-class" title="다음 반 수업 시작">
+              🧹 <b>새 학급 수업 시작 (전체 리셋)</b>
+              <small>다음 반 수업을 위해 투표·미션 깨끗이 초기화</small>
+            </button>
+          </div>
+        </div>
+
         <!-- 1. 안건 퀵 버튼 3종 -->
         <div class="admin-section">
           <h4>📢 안건 송출 퀵 버튼 (원터치 학생 화면 배너 전송)</h4>

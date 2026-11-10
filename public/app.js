@@ -121,6 +121,9 @@
   const btnCloseAdmin = document.getElementById('btnCloseAdmin');
   const adminBadgeCount = document.getElementById('adminBadgeCount');
   const adminBadgeAwardCount = document.getElementById('adminBadgeAwardCount');
+  const currentAdminClassName = document.getElementById('currentAdminClassName');
+  const btnExportClassResults = document.getElementById('btnExportClassResults');
+  const btnStartNewClassSession = document.getElementById('btnStartNewClassSession');
   const quickAgendaButtons = document.querySelectorAll('.btn-agenda-quick');
   const inputCustomAgenda = document.getElementById('inputCustomAgenda');
   const btnSendCustomAgenda = document.getElementById('btnSendCustomAgenda');
@@ -281,6 +284,8 @@
 
   function joinGame() {
     const nick = (inputNickname.value || '').trim() || '시민 학생';
+    const selectClassElem = document.getElementById('selectClass');
+    const userClass = selectClassElem ? selectClassElem.value : '1반';
     startBgm();
 
     loginModal.classList.add('hidden');
@@ -291,17 +296,18 @@
       adminContainer.classList.remove('hidden');
     }
 
-    initSocket(nick, selectedCharacterIndex);
+    initSocket(nick, selectedCharacterIndex, userClass);
   }
 
   // --- 4. Socket.io 통신 및 이벤트 등록 ---
-  function initSocket(nickname, characterIndex) {
+  function initSocket(nickname, characterIndex, className) {
     socket = io();
 
     socket.on('connect', () => {
       socket.emit('joinPlaza', {
         nickname,
         characterIndex,
+        className,
         isAdmin
       });
     });
@@ -526,6 +532,31 @@
 
     socket.on('systemNotification', (data) => {
       showToast(data.message, data.type === 'warn' ? '⚠️' : '✨');
+    });
+
+    socket.on('classSessionReset', (data) => {
+      myVote = null;
+      myHandRaised = false;
+      btnAgree.classList.remove('active');
+      btnDisagree.classList.remove('active');
+      btnHand.classList.remove('active');
+
+      if (myPlayer) {
+        myPlayer.className = data.newClassName;
+        myPlayer.vote = null;
+        myPlayer.statusEmoji = '';
+        myPlayer.hasBadge = false;
+        myPlayer.quest = { m1: false, m2: false, m3: 0, m4: false };
+        updateQuestUI(myPlayer.quest);
+        renderInventoryUI(myPlayer.inventory);
+      }
+
+      if (currentAdminClassName) {
+        currentAdminClassName.textContent = data.newClassName;
+      }
+
+      playAudio(audioPop, 1.0);
+      showToast(data.message, '🧹');
     });
 
     socket.on('votesReset', () => {
@@ -1071,6 +1102,28 @@
   btnAdminToggle.addEventListener('click', () => adminPanel.classList.toggle('closed'));
   btnCloseAdmin.addEventListener('click', () => adminPanel.classList.add('closed'));
 
+  // [수업 결과 엑셀(CSV) 다운로드]
+  if (btnExportClassResults) {
+    btnExportClassResults.addEventListener('click', () => {
+      const targetClass = currentAdminClassName ? currentAdminClassName.textContent : '1반';
+      window.open(`/api/export-results?class=${encodeURIComponent(targetClass)}`, '_blank');
+      showToast(`[${targetClass}] 수업 결과 엑셀(CSV) 다운로드가 시작되었습니다!`, '📥');
+    });
+  }
+
+  // [새 학급 수업 시작 (원터치 전체 리셋)]
+  if (btnStartNewClassSession) {
+    btnStartNewClassSession.addEventListener('click', () => {
+      const currentClass = currentAdminClassName ? currentAdminClassName.textContent : '1반';
+      const newClass = prompt(`현재 [${currentClass}] 수업을 마치고 새 학급 수업을 시작합니다.\n다음 반 이름을 입력하세요 (예: 2반, 3반):`, '2반');
+      if (newClass && newClass.trim()) {
+        if (confirm(`[${currentClass}]의 투표 및 퀘스트 기록이 아카이브에 저장되고, 모든 접속 상태가 [${newClass.trim()}] 수업으로 깨끗하게 초기화됩니다. 진행하시겠습니까?`)) {
+          if (socket) socket.emit('adminStartNewClass', { newClassName: newClass.trim() });
+        }
+      }
+    });
+  }
+
   quickAgendaButtons.forEach(btn => {
     btn.addEventListener('click', () => {
       const agendaText = btn.getAttribute('data-agenda');
@@ -1143,6 +1196,9 @@
 
     adminBadgeCount.textContent = `${total}명`;
     adminBadgeAwardCount.textContent = tally.badgeCount || 0;
+    if (currentAdminClassName && tally.currentClassName) {
+      currentAdminClassName.textContent = tally.currentClassName;
+    }
   }
 
   function updateSpeakerQueueUI(queue) {
@@ -1744,7 +1800,7 @@
     // ================= 머리 위 명찰 & 배지 & 이모지 =================
     // 1줄: [학생 이름] + [🏅 배지]
     ctx.font = isMe ? 'bold 12px sans-serif' : '11px sans-serif';
-    const tagText = `${p.hasBadge ? '🏅 ' : ''}${p.nickname}`;
+    const tagText = `${p.hasBadge ? '🏅 ' : ''}${p.className ? '[' + p.className + '] ' : ''}${p.nickname}`;
     const textWidth = ctx.measureText(tagText).width;
     const badgeW = textWidth + 14;
     const badgeH = 18;
