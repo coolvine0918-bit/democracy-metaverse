@@ -265,7 +265,7 @@
   function resizeCanvas() {
     screenWidth = window.innerWidth;
     screenHeight = window.innerHeight;
-    dpr = window.devicePixelRatio || 1;
+    dpr = Math.min(window.devicePixelRatio || 1, 2); // 고해상도 태블릿 60fps 부드러운 성능 보장
     canvas.width = Math.round(screenWidth * dpr);
     canvas.height = Math.round(screenHeight * dpr);
     canvas.style.width = screenWidth + 'px';
@@ -273,6 +273,7 @@
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
   window.addEventListener('resize', resizeCanvas);
+  window.addEventListener('orientationchange', () => setTimeout(resizeCanvas, 150));
   resizeCanvas();
 
   // --- 3. 로그인 및 광장 입장 ---
@@ -1047,7 +1048,10 @@
 
   canvas.addEventListener('touchstart', (e) => {
     const touch = e.changedTouches[0];
-    if (touch.clientX < 170 && touch.clientY > screenHeight - 170) return;
+    // [태블릿 터치 오동작 방지]: 좌측 하단 조이스틱, 우측 하단 액션 버튼 바, 상단 바 터치 시 캔버스 이동 무시
+    if (touch.clientX < 220 && touch.clientY > screenHeight - 220) return;
+    if (touch.clientX > screenWidth - 320 && touch.clientY > screenHeight - 160) return;
+    if (touch.clientY < 80) return;
 
     const worldX = Math.round(touch.clientX + camera.x - screenWidth / 2);
     const worldY = Math.round(touch.clientY + camera.y - screenHeight / 2);

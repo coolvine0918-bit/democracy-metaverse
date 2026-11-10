@@ -16,6 +16,10 @@ html, body {
   height: 100%;
   overflow: hidden;
   position: fixed;
+  touch-action: manipulation;
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+  -webkit-touch-callout: none;
   font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", "Pretendard", Roboto, sans-serif;
   background-color: #1a202c;
   color: #f7fafc;
@@ -1867,10 +1871,178 @@ html, body {
   text-overflow: ellipsis;
 }
 
-/* ================= 8. 태블릿 반응형 미디어 쿼리 ================= */
-@media (max-width: 768px) {
+/* ================= 8. 태블릿(Tablet) 전용 화면 최적화 (768px ~ 1366px) ================= */
+@media (min-width: 601px) and (max-width: 1366px) {
+  /* 상단 상태 바 & 메뉴 (태블릿 터치 타겟 44px 이상) */
+  #topBarContainer {
+    top: max(16px, env(safe-area-inset-top, 16px));
+    left: max(16px, env(safe-area-inset-left, 16px));
+    right: max(16px, env(safe-area-inset-right, 16px));
+    gap: 12px;
+  }
+
+  .location-badge {
+    padding: 10px 18px;
+    font-size: 0.95rem;
+    border-radius: 26px;
+  }
+
+  .top-tool-btn {
+    padding: 9px 16px;
+    font-size: 0.9rem;
+    border-radius: 22px;
+    height: 44px;
+    gap: 8px;
+  }
+
+  .agenda-pinned {
+    max-width: 520px;
+    padding: 9px 20px;
+  }
+
+  .agenda-content {
+    font-size: 0.95rem;
+  }
+
+  .btn-sound {
+    width: 48px;
+    height: 48px;
+    font-size: 1.35rem;
+  }
+
+  /* 좌측 하단 태블릿 가상 조이스틱 (왼손 엄지 그립 최적화) */
+  .joystick-zone {
+    bottom: max(24px, env(safe-area-inset-bottom, 24px));
+    left: max(24px, env(safe-area-inset-left, 24px));
+    width: 150px;
+    height: 150px;
+  }
+
+  .joystick-base {
+    width: 130px;
+    height: 130px;
+    border: 3px solid rgba(255, 255, 255, 0.28);
+    background: rgba(15, 23, 42, 0.6);
+  }
+
+  .joystick-knob {
+    width: 58px;
+    height: 58px;
+    border: 3px solid #ffffff;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+  }
+
+  .joystick-guide {
+    font-size: 0.8rem;
+    font-weight: 700;
+  }
+
+  /* 우측 하단 태블릿 대형 액션 버튼 바 (오른손 엄지 탭 최적화) */
+  .action-bar {
+    bottom: max(22px, env(safe-area-inset-bottom, 22px));
+    right: max(22px, env(safe-area-inset-right, 22px));
+    gap: 12px;
+  }
+
+  .action-btn {
+    height: 68px;
+    min-width: 82px;
+    padding: 0 16px;
+    border-radius: 22px;
+  }
+
+  .btn-agree, .btn-disagree {
+    min-width: 96px;
+  }
+
+  .btn-icon {
+    font-size: 1.65rem;
+  }
+
+  .btn-label {
+    font-size: 0.85rem;
+    font-weight: 800;
+  }
+
+  /* 태블릿 모달창 최적화 (인벤토리, 퀘스트, 게시판) */
+  .custom-dialog-card {
+    max-width: 580px;
+    max-height: 82vh;
+    border-radius: 26px;
+  }
+
+  .inventory-card {
+    max-width: 580px;
+  }
+
+  .inventory-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+    padding: 20px;
+  }
+
+  .inventory-slot {
+    padding: 16px 14px;
+    min-height: 125px;
+  }
+
+  .slot-icon {
+    font-size: 2.5rem;
+  }
+
+  .quest-card {
+    max-width: 600px;
+  }
+
+  .quest-list {
+    gap: 12px;
+    padding: 18px;
+  }
+
+  .board-card {
+    max-width: 640px;
+  }
+
+  .board-content-box {
+    font-size: 1.05rem;
+    line-height: 1.6;
+    padding: 20px;
+  }
+
+  /* 태블릿 플로팅 채팅창 서랍 */
+  .chat-drawer {
+    width: 390px;
+    max-width: 44vw;
+    height: 520px;
+    bottom: 104px;
+    right: 22px;
+    border-radius: 26px;
+  }
+
+  /* 태블릿 교사 관리자 콘솔 */
+  .admin-panel {
+    width: 500px;
+    max-width: calc(100vw - 44px);
+    right: 22px;
+    border-radius: 26px;
+  }
+
+  /* 태블릿 안건 및 교사 말씀 대형 배너 */
+  .agenda-card, .teacher-banner-card {
+    max-width: 640px;
+    padding: 38px 32px;
+    border-radius: 30px;
+  }
+
+  .agenda-card p, .teacher-banner-text {
+    font-size: 1.5rem;
+  }
+}
+
+/* ================= 9. 모바일(스마트폰) 화면 대응 (< 600px) ================= */
+@media (max-width: 600px) {
   .login-card {
-    padding: 24px 20px;
+    padding: 24px 18px;
     max-width: 92vw;
   }
   .avatar-selector {
@@ -1902,8 +2074,8 @@ html, body {
     min-width: 76px;
   }
   .joystick-zone {
-    bottom: 16px;
-    left: 16px;
+    bottom: 14px;
+    left: 14px;
     width: 120px;
     height: 120px;
   }
@@ -1923,5 +2095,43 @@ html, body {
   .admin-panel {
     width: calc(100vw - 28px);
     right: 14px;
+  }
+}
+
+/* ================= 10. 가로 모드 높이가 좁은 태블릿 (< 620px) ================= */
+@media (max-height: 620px) {
+  #topBarContainer {
+    top: 8px;
+  }
+  .agenda-pinned {
+    display: none; /* 화면 시야 확보 */
+  }
+  .action-bar {
+    bottom: 12px;
+  }
+  .action-btn {
+    height: 56px;
+    min-width: 72px;
+  }
+  .joystick-zone {
+    bottom: 12px;
+    left: 12px;
+    width: 115px;
+    height: 115px;
+  }
+  .joystick-base {
+    width: 100px;
+    height: 100px;
+  }
+  .joystick-knob {
+    width: 44px;
+    height: 44px;
+  }
+  .custom-dialog-card {
+    max-height: 90vh;
+  }
+  .chat-drawer {
+    height: 380px;
+    bottom: 78px;
   }
 }
