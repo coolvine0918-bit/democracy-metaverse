@@ -1,5 +1,7 @@
 # 🏛️ 중학교 사회 직접민주주의 메타버스 총회 웹앱
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/coolvine0918-bit/democracy-metaverse)
+
 중학교 사회 수업(직접민주주의)을 위한 28명 동시 접속 2D 탑뷰 메타버스 웹앱입니다.  
 학생 태블릿(iPad, Galaxy Tab 등) 터치 환경에 완벽하게 최적화되어 있습니다.
 
