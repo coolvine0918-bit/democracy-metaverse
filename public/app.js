@@ -132,6 +132,9 @@
   const quickAgendaButtons = document.querySelectorAll('.btn-agenda-quick');
   const inputCustomAgenda = document.getElementById('inputCustomAgenda');
   const btnSendCustomAgenda = document.getElementById('btnSendCustomAgenda');
+  const btnStartDiscussionTimer = document.getElementById('btnStartDiscussionTimer');
+  const timerBtnTitle = document.getElementById('timerBtnTitle');
+  const timerBtnDesc = document.getElementById('timerBtnDesc');
   const btnSummonAll = document.getElementById('btnSummonAll');
   const btnToggleVote = document.getElementById('btnToggleVote');
   const voteToggleDesc = document.getElementById('voteToggleDesc');
@@ -184,6 +187,17 @@
   let voteActive = false;
   let myVote = null;
   let myHandRaised = false;
+
+  // 글로벌 토론 타이머 & 텔레포트 상태
+  const discussionTimerWidget = document.getElementById('discussionTimerWidget');
+  const timerCountdown = document.getElementById('timerCountdown');
+  let clientTimerInterval = null;
+  let timerEndsAt = 0;
+  let isTimerRunning = false;
+
+  // 텔레포트 파동(Ripple) 및 빛무리 파티클 시스템
+  const teleportRipples = [];
+  const teleportParticles = [];
 
   // 이펙트 파티클 리스트 (컨페티, 하이파이브 스파크)
   const particles = [];
@@ -382,6 +396,29 @@
       if (data.agenda && data.agenda.active && data.agenda.text) {
         showPinnedAgenda(data.agenda.text);
       }
+
+      // 접속 시 이미 진행 중인 토론 타이머가 있으면 카운트다운 동기화
+      if (data.discussionTimer && data.discussionTimer.active && data.discussionTimer.endsAt > Date.now()) {
+        startClientTimer(data.discussionTimer.endsAt, data.discussionTimer.duration);
+      }
+    });
+
+    // 소회의실 토론 3분 타이머 시작 브로드캐스트 수신
+    socket.on('timerStarted', (data) => {
+      startClientTimer(data.endsAt, data.duration);
+      playAudio(audioPop, 0.9);
+      showToast('⏱️ 소회의실 3분 토론이 시작되었습니다! 종료 시 광장으로 자동 소환됩니다.', '💬');
+    });
+
+    // 토론 타이머 취소 수신
+    socket.on('timerCancelled', () => {
+      stopClientTimer();
+      showToast('⏱️ 소회의실 토론 타이머가 취소되었습니다.', 'ℹ️');
+    });
+
+    // 토론 타이머 종료 수신
+    socket.on('timerEnded', () => {
+      stopClientTimer();
     });
 
     socket.on('playerJoined', (p) => {
@@ -468,11 +505,14 @@
       }
     });
 
-    // 광장 소환
+    // 광장 소환 (수동 또는 타이머 종료 시 자동 소환)
     socket.on('summonedToPlaza', (data) => {
-      playAudio(audioPop, 1.0);
-      showToast(data.message, '🚨');
+      playAudio(audioSuccess, 1.0);
+      showToast(data.message, '🏛️');
       tapMove.active = false;
+
+      // 타이머 즉시 종료 및 숨김
+      stopClientTimer();
 
       data.players.forEach(pData => {
         if (pData.id === myId && myPlayer) {
@@ -481,6 +521,8 @@
           myPlayer.cafeId = null;
           camera.x = pData.x;
           camera.y = pData.y;
+          // 내 아바타 위치에 화려한 소환 빛무리 & 파동 이펙트 폭발
+          triggerTeleportArrivalEffect(pData.x, pData.y);
         } else {
           const p = otherPlayers.get(pData.id);
           if (p) {
@@ -489,6 +531,8 @@
             p.targetX = pData.x;
             p.targetY = pData.y;
             p.cafeId = null;
+            // 다른 급우들 위치에도 동시에 소환 이펙트 생성
+            triggerTeleportArrivalEffect(pData.x, pData.y);
           }
         }
       });
@@ -1229,6 +1273,9 @@
         e.preventDefault();
         const btn3 = document.querySelector('.btn-agenda-quick[data-id="3"]');
         if (btn3) btn3.click();
+      } else if (e.code === 'KeyT') {
+        e.preventDefault();
+        if (btnStartDiscussionTimer) btnStartDiscussionTimer.click();
       } else if (e.code === 'Space') {
         e.preventDefault();
         if (btnSummonAll) btnSummonAll.click();
@@ -1284,6 +1331,20 @@
       inputCustomAgenda.value = '';
     }
   });
+
+  if (btnStartDiscussionTimer) {
+    btnStartDiscussionTimer.addEventListener('click', () => {
+      if (isTimerRunning) {
+        if (confirm('현재 진행 중인 3분 소회의실 토론 타이머를 취소하시겠습니까?')) {
+          if (socket) socket.emit('adminCancelTimer');
+        }
+      } else {
+        if (confirm('소회의실 토론 시간제한(3분)을 시작하시겠습니까?\n\n- 28명 모든 학생 화면 상단에 실시간 카운트다운(03:00)이 표시됩니다.\n- 10초 미만 시 빨간색 깜빡임 경고가 켜집니다.\n- 3분 종료 시 모든 학생이 중앙 광장으로 자동 소환됩니다.')) {
+          if (socket) socket.emit('adminStartTimer', { duration: 180 });
+        }
+      }
+    });
+  }
 
   btnSummonAll.addEventListener('click', () => {
     if (confirm('모든 학생을 중앙 광장으로 즉시 소환하시겠습니까? (소회의실 인원 전원 복귀)')) {
@@ -1542,6 +1603,173 @@
     toastTimer = setTimeout(() => systemToast.classList.add('hidden'), 3500);
   }
 
+  // --- [글로벌 토론 타이머 동기화 제어 함수] ---
+  function startClientTimer(endsAt, totalDuration = 180) {
+    timerEndsAt = endsAt;
+    isTimerRunning = true;
+
+    if (discussionTimerWidget) {
+      discussionTimerWidget.classList.remove('hidden');
+    }
+    if (btnStartDiscussionTimer) {
+      btnStartDiscussionTimer.classList.add('running');
+      if (timerBtnTitle) timerBtnTitle.textContent = '토론 진행 중 (취소)';
+      if (timerBtnDesc) timerBtnDesc.textContent = '클릭하면 3분 타이머 즉시 취소';
+    }
+
+    if (clientTimerInterval) clearInterval(clientTimerInterval);
+
+    updateTimerDisplay();
+
+    clientTimerInterval = setInterval(() => {
+      const remaining = Math.max(0, Math.ceil((timerEndsAt - Date.now()) / 1000));
+      updateTimerDisplay(remaining);
+
+      if (remaining <= 0) {
+        clearInterval(clientTimerInterval);
+        clientTimerInterval = null;
+      }
+    }, 500);
+  }
+
+  function updateTimerDisplay(remainingSec = null) {
+    if (remainingSec === null) {
+      remainingSec = Math.max(0, Math.ceil((timerEndsAt - Date.now()) / 1000));
+    }
+    const min = String(Math.floor(remainingSec / 60)).padStart(2, '0');
+    const sec = String(remainingSec % 60).padStart(2, '0');
+    if (timerCountdown) timerCountdown.textContent = `${min}:${sec}`;
+
+    // 남은 시간이 10초 미만이 되면 텍스트가 빨간색으로 변하고 깜빡임 (Urgent Pulse)
+    if (remainingSec <= 10 && remainingSec > 0) {
+      if (discussionTimerWidget) discussionTimerWidget.classList.add('urgent');
+      if (audioPop) playAudio(audioPop, 0.4);
+    } else {
+      if (discussionTimerWidget) discussionTimerWidget.classList.remove('urgent');
+    }
+  }
+
+  function stopClientTimer() {
+    isTimerRunning = false;
+    if (clientTimerInterval) {
+      clearInterval(clientTimerInterval);
+      clientTimerInterval = null;
+    }
+    if (discussionTimerWidget) {
+      discussionTimerWidget.classList.add('hidden');
+      discussionTimerWidget.classList.remove('urgent');
+    }
+    if (btnStartDiscussionTimer) {
+      btnStartDiscussionTimer.classList.remove('running');
+      if (timerBtnTitle) timerBtnTitle.textContent = '토론 시작 (3분)';
+      if (timerBtnDesc) timerBtnDesc.textContent = '3분 후 전원 광장 자동 소환';
+    }
+  }
+
+  // --- [시각적 연출: 아바타 순간이동 빛무리(Particle) & 파란색/황금색 원형 파동(Ripple) 이펙트] ---
+  function triggerTeleportArrivalEffect(targetX, targetY) {
+    // 1. 파란색 & 황금색 다중 원형 파동 (Ripple) 생성 (바깥으로 퍼져나가는 3중 링 효과, 1.5초 지속)
+    teleportRipples.push(
+      { x: targetX, y: targetY, radius: 10, maxRadius: 110, color: '#38bdf8', lineWidth: 4, life: 1.1, maxLife: 1.1, delay: 0 },
+      { x: targetX, y: targetY, radius: 8, maxRadius: 130, color: '#fbbf24', lineWidth: 3.5, life: 1.35, maxLife: 1.35, delay: 0.15 },
+      { x: targetX, y: targetY, radius: 5, maxRadius: 90, color: '#60a5fa', lineWidth: 2, life: 1.5, maxLife: 1.5, delay: 0.3 }
+    );
+
+    // 2. 사방으로 뿜어져 나오는 신비로운 빛무리 파티클 (Particles)
+    const colors = ['#fbbf24', '#fef08a', '#38bdf8', '#93c5fd', '#ffffff'];
+    for (let i = 0; i < 40; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 40 + Math.random() * 140;
+      teleportParticles.push({
+        x: targetX,
+        y: targetY - 10,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 20, // 살짝 위로 솟구침
+        color: colors[Math.floor(Math.random() * colors.length)],
+        size: 2.5 + Math.random() * 3.5,
+        life: 0.8 + Math.random() * 0.7,
+        maxLife: 1.5,
+        isSparkle: Math.random() > 0.4
+      });
+    }
+
+    // 3. 소환 빛기둥 (Vertical Light Pillar)
+    teleportParticles.push({
+      isPillar: true,
+      x: targetX,
+      y: targetY,
+      width: 40,
+      height: 180,
+      life: 0.8,
+      maxLife: 0.8
+    });
+  }
+
+  function drawTeleportEffects() {
+    if (teleportRipples.length === 0 && teleportParticles.length === 0) return;
+
+    // 1. 소환 빛기둥 렌더링 (하늘에서 광장으로 내려앉는 신비로운 기둥)
+    teleportParticles.filter(p => p.isPillar).forEach(pillar => {
+      ctx.save();
+      const alpha = Math.max(0, pillar.life / pillar.maxLife);
+      const grad = ctx.createLinearGradient(pillar.x, pillar.y - pillar.height, pillar.x, pillar.y);
+      grad.addColorStop(0, 'rgba(56, 189, 248, 0)');
+      grad.addColorStop(0.5, `rgba(251, 191, 36, ${0.45 * alpha})`);
+      grad.addColorStop(1, `rgba(255, 255, 255, ${0.85 * alpha})`);
+      ctx.fillStyle = grad;
+      ctx.fillRect(pillar.x - pillar.width / 2, pillar.y - pillar.height, pillar.width, pillar.height);
+      ctx.restore();
+    });
+
+    // 2. 바닥 원형 파동 (Ripple) 렌더링
+    teleportRipples.forEach(rp => {
+      if (rp.delay > 0) return;
+      ctx.save();
+      const alpha = Math.max(0, rp.alpha || 0);
+      ctx.globalAlpha = alpha;
+
+      // 내부 은은한 반투명 글로우
+      ctx.beginPath();
+      ctx.arc(rp.x, rp.y, rp.radius, 0, Math.PI * 2);
+      ctx.fillStyle = rp.color === '#fbbf24' ? 'rgba(251, 191, 36, 0.15)' : 'rgba(56, 189, 248, 0.18)';
+      ctx.fill();
+
+      // 외부 팽창 링 테두리
+      ctx.beginPath();
+      ctx.arc(rp.x, rp.y, rp.radius, 0, Math.PI * 2);
+      ctx.strokeStyle = rp.color;
+      ctx.lineWidth = Math.max(1, rp.lineWidth * (rp.life / rp.maxLife));
+      ctx.stroke();
+      ctx.restore();
+    });
+
+    // 3. 빛무리 스파클 입자 (Particles) 렌더링
+    teleportParticles.filter(p => !p.isPillar).forEach(pt => {
+      ctx.save();
+      const alpha = Math.max(0, pt.life / pt.maxLife);
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = pt.color;
+
+      if (pt.isSparkle) {
+        // 반짝이는 다이아몬드 별
+        const s = pt.size * (0.8 + Math.sin(Date.now() / 90) * 0.4);
+        ctx.beginPath();
+        ctx.moveTo(pt.x, pt.y - s);
+        ctx.lineTo(pt.x + s * 0.7, pt.y);
+        ctx.lineTo(pt.x, pt.y + s);
+        ctx.lineTo(pt.x - s * 0.7, pt.y);
+        ctx.closePath();
+        ctx.fill();
+      } else {
+        // 원형 빛방울
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, pt.size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    });
+  }
+
   // --- 14. 파티클 이펙트 시스템 ---
   function spawnBallotParticles(x, y, choice) {
     const color = choice === 'agree' ? '#10b981' : '#ef4444';
@@ -1703,6 +1931,39 @@
       if (pt.life <= 0) particles.splice(i, 1);
     }
 
+    // 텔레포트 파동(Ripple) 애니메이션 업데이트
+    for (let i = teleportRipples.length - 1; i >= 0; i--) {
+      const rp = teleportRipples[i];
+      if (rp.delay > 0) {
+        rp.delay -= dt;
+        continue;
+      }
+      rp.life -= dt;
+      if (rp.life <= 0) {
+        teleportRipples.splice(i, 1);
+        continue;
+      }
+      const progress = 1 - (rp.life / rp.maxLife);
+      rp.radius = 10 + (rp.maxRadius - 10) * Math.sin(progress * Math.PI / 2);
+      rp.alpha = (rp.life / rp.maxLife);
+    }
+
+    // 텔레포트 빛무리 파티클 애니메이션 업데이트
+    for (let i = teleportParticles.length - 1; i >= 0; i--) {
+      const pt = teleportParticles[i];
+      pt.life -= dt;
+      if (pt.life <= 0) {
+        teleportParticles.splice(i, 1);
+        continue;
+      }
+      if (!pt.isPillar) {
+        pt.x += pt.vx * dt;
+        pt.y += pt.vy * dt;
+        pt.vx *= 0.94; // 물리 감속
+        pt.vy *= 0.94;
+      }
+    }
+
     // 카메라 부드러운 추종
     camera.targetX = myPlayer.x;
     camera.targetY = myPlayer.y;
@@ -1742,7 +2003,8 @@
 
     renderList.forEach(p => drawCharacter(p, p.id === myId));
 
-    // 7. 파티클 이펙트
+    // 7. 파티클 및 텔레포트 빛무리/파동 이펙트
+    drawTeleportEffects();
     drawParticles();
 
     ctx.restore();

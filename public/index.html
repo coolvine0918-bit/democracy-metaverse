@@ -112,6 +112,16 @@
       <span id="pinnedAgendaText" class="agenda-content">안건이 아직 상정되지 않았습니다.</span>
     </div>
 
+    <!-- 글로벌 토론 타이머 (3분 카운트다운 위젯) -->
+    <div id="discussionTimerWidget" class="discussion-timer-widget hidden">
+      <span class="timer-icon">⏱️</span>
+      <div class="timer-info-col">
+        <span class="timer-label">소회의실 토론</span>
+        <span id="timerCountdown" class="timer-digits">03:00</span>
+      </div>
+      <span id="timerHint" class="timer-hint">종료 시 광장 자동 소환</span>
+    </div>
+
     <!-- 배경음악/사운드 토글 버튼 -->
     <button id="btnSoundToggle" class="btn-sound" title="소리 On/Off">
       🔊
@@ -391,7 +401,7 @@
       <div class="admin-body">
         <!-- 💻 노트북 핫키 안내 바 -->
         <div class="admin-hotkeys-guide">
-          <span>⌨️ <b>단축키:</b> [1~3] 안건 송출 | [Space] 광장 소환 | [V] 투표 토글 | [R] 리셋 | [C] 채팅</span>
+          <span>⌨️ <b>단축키:</b> [1~3] 안건 송출 | [T] 토론 타이머(3분) | [Space] 즉시 광장 소환 | [V] 투표 토글 | [R] 리셋 | [C] 채팅</span>
         </div>
 
         <!-- 0. 학급 관리 & 결과 리포트 섹션 -->
@@ -434,10 +444,15 @@
           </div>
         </div>
 
-        <!-- 2. 중앙 통제 버튼 (광장 소환 & 투표 활성화) -->
+        <!-- 2. 중앙 통제 버튼 (소회의실 토론 타이머, 광장 소환 & 투표 활성화) -->
         <div class="admin-section admin-actions-row">
+          <button id="btnStartDiscussionTimer" class="btn-control btn-timer">
+            ⏱️ <b id="timerBtnTitle">토론 시작 (3분)</b> <kbd class="kbd-hint">T</kbd>
+            <small id="timerBtnDesc">3분 후 전원 광장 자동 소환</small>
+          </button>
+
           <button id="btnSummonAll" class="btn-control btn-summon">
-            🚨 <b>광장 소환</b> <kbd class="kbd-hint">Space</kbd>
+            🚨 <b>즉시 광장 소환</b> <kbd class="kbd-hint">Space</kbd>
             <small>모든 학생을 즉시 중앙 광장으로 이동</small>
           </button>
 

@@ -85,7 +85,13 @@ const gameState = {
     timestamp: Date.now()
   },
   voteActive: false,
-  handRaiseQueue: []
+  handRaiseQueue: [],
+  discussionTimer: {
+    active: false,
+    duration: 180, // 3분 (180초)
+    endsAt: 0,
+    timerId: null
+  }
 };
 
 // 카페 내 인원 수 확인 함수
@@ -334,6 +340,11 @@ io.on('connection', (socket) => {
       cafeStatus: computeCafeStatus(),
       handRaiseQueue: gameState.handRaiseQueue,
       noticeMaterials: NOTICE_MATERIALS,
+      discussionTimer: {
+        active: gameState.discussionTimer.active,
+        duration: gameState.discussionTimer.duration,
+        endsAt: gameState.discussionTimer.endsAt
+      },
       questProgressList: getQuestProgressSummary(),
       connectedStudents: getConnectedStudentsList()
     });
@@ -752,15 +763,13 @@ io.on('connection', (socket) => {
     io.emit('agendaAnnounced', gameState.agenda);
   });
 
-  // [광장 소환 버튼]
-  socket.on('adminSummonAll', () => {
-    console.log('[교사 관리자] 모든 학생을 중앙 광장으로 소환합니다.');
-
+  // [중앙 광장 소환 로직 공통 함수]
+  function performSummonAll(message = '선생님이 모든 학생을 중앙 광장으로 소환했습니다! 🏛️', triggerEffect = true) {
     const summonedPositions = [];
     for (const [id, player] of players.entries()) {
       if (player.isAdmin) continue; // 교사는 소환 위치 이동에서 제외
 
-      player.cafeId = null;
+      player.cafeId = null; // 소회의실 상태 해제 -> 중앙 광장 (room: 'plaza')
       const angle = Math.random() * Math.PI * 2;
       const radius = 50 + Math.random() * 150;
       player.x = Math.round(MAP_CONFIG.plaza.centerX + Math.cos(angle) * radius);
@@ -776,11 +785,59 @@ io.on('connection', (socket) => {
     }
 
     io.emit('summonedToPlaza', {
-      message: '선생님이 모든 학생을 중앙 광장으로 소환했습니다! 🏛️',
+      message,
+      triggerEffect,
       players: summonedPositions
     });
     io.emit('cafeStatusUpdated', computeCafeStatus());
     io.emit('studentListUpdated', getConnectedStudentsList());
+  }
+
+  // [광장 즉시 소환 버튼]
+  socket.on('adminSummonAll', () => {
+    console.log('[교사 관리자] 모든 학생을 중앙 광장으로 즉시 소환합니다.');
+    performSummonAll('선생님이 모든 학생을 중앙 광장으로 소환했습니다! 🏛️', true);
+  });
+
+  // [소회의실 3분 토론 타이머 시작]
+  socket.on('adminStartTimer', (data) => {
+    const duration = parseInt(data && data.duration) || 180; // 기본 180초 (3분)
+    const endsAt = Date.now() + duration * 1000;
+
+    if (gameState.discussionTimer.timerId) {
+      clearTimeout(gameState.discussionTimer.timerId);
+    }
+
+    gameState.discussionTimer.active = true;
+    gameState.discussionTimer.duration = duration;
+    gameState.discussionTimer.endsAt = endsAt;
+
+    gameState.discussionTimer.timerId = setTimeout(() => {
+      console.log('[타이머 종료] 3분 토론 종료 -> 학생 전원 중앙 광장으로 자동 소환 실행');
+      performSummonAll('⏱️ 소회의실 토론 시간(3분)이 종료되어 전원 중앙 광장으로 자동 소환되었습니다! 🏛️✨', true);
+      gameState.discussionTimer.active = false;
+      gameState.discussionTimer.timerId = null;
+      io.emit('timerEnded', { reason: 'timeout' });
+    }, duration * 1000);
+
+    console.log(`[교사 관리자] 소회의실 토론 타이머 시작: ${duration}초`);
+    io.emit('timerStarted', {
+      active: true,
+      duration,
+      endsAt
+    });
+  });
+
+  // [소회의실 토론 타이머 수동 취소]
+  socket.on('adminCancelTimer', () => {
+    if (gameState.discussionTimer.timerId) {
+      clearTimeout(gameState.discussionTimer.timerId);
+    }
+    gameState.discussionTimer.active = false;
+    gameState.discussionTimer.timerId = null;
+    gameState.discussionTimer.endsAt = 0;
+    console.log('[교사 관리자] 소회의실 토론 타이머가 취소되었습니다.');
+    io.emit('timerCancelled');
   });
 
   // [투표 활성화 / 마감 토글]

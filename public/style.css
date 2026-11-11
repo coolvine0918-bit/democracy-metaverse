@@ -340,6 +340,86 @@ html, body {
   animation: slideDown 0.4s ease;
 }
 
+/* ================= 글로벌 소회의실 토론 타이머 위젯 ================= */
+.discussion-timer-widget {
+  pointer-events: auto;
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(10px);
+  border: 1.5px solid #38bdf8;
+  border-radius: 30px;
+  padding: 6px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 4px 18px rgba(56, 189, 248, 0.25);
+  animation: slideDown 0.3s ease;
+  transition: all 0.25s ease-in-out;
+}
+
+.discussion-timer-widget .timer-icon {
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+.timer-info-col {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+
+.timer-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: -0.2px;
+}
+
+.timer-digits {
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 1.25rem;
+  font-weight: 900;
+  color: #38bdf8;
+  letter-spacing: 1.5px;
+  min-width: 52px;
+}
+
+.timer-hint {
+  font-size: 0.72rem;
+  color: #64748b;
+  border-left: 1px solid rgba(255, 255, 255, 0.15);
+  padding-left: 8px;
+  white-space: nowrap;
+}
+
+/* 10초 미만 긴급 상태: 빨간색 전환 + 깜빡임(Pulse) 효과 */
+.discussion-timer-widget.urgent {
+  background: rgba(220, 38, 38, 0.94) !important;
+  border-color: #fca5a5 !important;
+  box-shadow: 0 0 24px rgba(239, 68, 68, 0.7) !important;
+  animation: timerUrgentBlink 0.5s infinite alternate ease-in-out !important;
+}
+
+.discussion-timer-widget.urgent .timer-label,
+.discussion-timer-widget.urgent .timer-hint {
+  color: #fee2e2 !important;
+}
+
+.discussion-timer-widget.urgent .timer-digits {
+  color: #ffffff !important;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.9);
+}
+
+@keyframes timerUrgentBlink {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.5);
+  }
+  100% {
+    transform: scale(1.06);
+    box-shadow: 0 0 28px rgba(239, 68, 68, 0.95);
+  }
+}
+
 @keyframes slideDown {
   from { transform: translateY(-30px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
@@ -1610,6 +1690,24 @@ html, body {
 
 .btn-control:active {
   transform: scale(0.96);
+}
+
+.btn-timer {
+  background: linear-gradient(135deg, #0284c7, #0369a1);
+  border: 1px solid #38bdf8;
+}
+.btn-timer:hover {
+  background: linear-gradient(135deg, #0369a1, #075985);
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.4);
+}
+.btn-timer.running {
+  background: linear-gradient(135deg, #dc2626, #b91c1c);
+  border-color: #f87171;
+  animation: timerBtnPulse 1s infinite alternate;
+}
+@keyframes timerBtnPulse {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.02); box-shadow: 0 0 16px rgba(220, 38, 38, 0.6); }
 }
 
 .btn-summon {
