@@ -74,6 +74,16 @@
   const boardTopicContent = document.getElementById('boardTopicContent');
   const btnConfirmBoardRead = document.getElementById('btnConfirmBoardRead');
 
+  // 팩트체크 NPC 퀴즈 모달
+  const quizModal = document.getElementById('quizModal');
+  const btnCloseQuiz = document.getElementById('btnCloseQuiz');
+  const quizStepBadge = document.getElementById('quizStepBadge');
+  const quizProgressBar = document.getElementById('quizProgressBar');
+  const quizTopicBadge = document.getElementById('quizTopicBadge');
+  const quizQuestionBox = document.getElementById('quizQuestionBox');
+  const quizOptionsList = document.getElementById('quizOptionsList');
+  const quizFeedbackBox = document.getElementById('quizFeedbackBox');
+
   // 투표함 근접 퀵 버튼
   const ballotBoxActionZone = document.getElementById('ballotBoxActionZone');
   const btnBallotQuickVoteAgree = document.getElementById('btnBallotQuickVoteAgree');
@@ -181,6 +191,7 @@
     plaza: { centerX: 1200, centerY: 920, radius: 300 },
     ballotBox: { x: 1200, y: 840, w: 56, h: 56 },
     noticeBoard: { x: 1040, y: 840, w: 64, h: 44 },
+    quizNpc: { x: 1360, y: 840, w: 56, h: 64, name: '팩트체크 NPC 🤖' },
     fountain: { x: 1200, y: 960, radius: 46 },
     cafes: []
   };
@@ -596,6 +607,28 @@
       }
     });
 
+    // 팩트체크 NPC 퀴즈 보상 수령 (투표용지 3장)
+    socket.on('quizRewardGranted', (data) => {
+      playAudio(audioSuccess, 1.0);
+      spawnConfettiBurst();
+      if (myPlayer) {
+        myPlayer.quizCompleted = data.quizCompleted;
+        myPlayer.votingPaperCount = data.votingPaperCount;
+        myPlayer.inventory = data.inventory;
+        renderInventoryUI(myPlayer.inventory);
+      }
+      showToast(data.message, '📜');
+    });
+
+    // 투표용지 잔여 수량 갱신 (투표함 투입 시 차감)
+    socket.on('votingPaperCountUpdated', (data) => {
+      if (myPlayer) {
+        myPlayer.votingPaperCount = data.votingPaperCount;
+        myPlayer.inventory = data.inventory;
+        renderInventoryUI(myPlayer.inventory);
+      }
+    });
+
     // 학생 상호작용 알림 수신 (MMO 하이파이브)
     socket.on('interactionReceived', (data) => {
       playAudio(audioSuccess, 0.8);
@@ -634,6 +667,8 @@
         myPlayer.vote = null;
         myPlayer.statusEmoji = '';
         myPlayer.hasBadge = false;
+        myPlayer.quizCompleted = false;
+        myPlayer.votingPaperCount = 0;
         myPlayer.quest = { m1: false, m2: false, m3: 0, m4: false };
         updateQuestUI(myPlayer.quest);
         renderInventoryUI(myPlayer.inventory);
@@ -766,6 +801,17 @@
       h: mapConfig.noticeBoard.h
     });
 
+    // 3-1. 팩트체크 NPC (박스)
+    if (mapConfig.quizNpc) {
+      list.push({
+        type: 'rect',
+        x: mapConfig.quizNpc.x - mapConfig.quizNpc.w / 2,
+        y: mapConfig.quizNpc.y - mapConfig.quizNpc.h / 2,
+        w: mapConfig.quizNpc.w,
+        h: mapConfig.quizNpc.h
+      });
+    }
+
     // 4. 7개 카페 벽면 (지붕 및 좌우/상단 벽)
     mapConfig.cafes.forEach(c => {
       const left = c.x - c.w / 2;
@@ -846,15 +892,24 @@
       slot.className = 'inventory-slot';
       slot.setAttribute('data-id', item.id);
 
+      const countBadge = (item.count !== undefined) ? `<span class="slot-badge-count">x${item.count}</span>` : '';
+      const isDepleted = item.type === 'ballot' && item.count === 0;
+      const useButton = item.type === 'ballot'
+        ? (isDepleted
+            ? `<button class="btn-slot-use" disabled style="opacity:0.5; cursor:not-allowed; background:#475569;">소진됨</button>`
+            : `<button class="btn-slot-use" data-vote="${item.voteChoice}">투표함 투입</button>`)
+        : '';
+
       slot.innerHTML = `
+        ${countBadge}
         <span class="slot-icon">${item.icon}</span>
         <span class="slot-name">${item.name}</span>
         <p class="slot-desc">${item.desc}</p>
-        ${item.type === 'ballot' ? `<button class="btn-slot-use" data-vote="${item.voteChoice}">투표함 투입</button>` : ''}
+        ${useButton}
       `;
 
-      // 투표용지일 경우 터치/클릭으로 1-터치 투입도 지원
-      const btnUse = slot.querySelector('.btn-slot-use');
+      // 투표용지일 경우 터치/클릭으로 1-터치 투입도 지원 (소진되지 않았을 때만)
+      const btnUse = slot.querySelector('.btn-slot-use:not([disabled])');
       if (btnUse) {
         btnUse.addEventListener('click', (e) => {
           e.stopPropagation();
@@ -863,8 +918,8 @@
         });
       }
 
-      // 드래그 앤 드롭 시작 (터치 & 마우스)
-      if (item.type === 'ballot') {
+      // 드래그 앤 드롭 시작 (터치 & 마우스, 잔여 수량이 있을 때만)
+      if (item.type === 'ballot' && !isDepleted) {
         slot.addEventListener('pointerdown', (e) => {
           startDragItem(item, e.clientX, e.clientY);
         });
@@ -915,6 +970,12 @@
 
   function submitBallot(choice) {
     if (!socket) return;
+    if (myPlayer && !myPlayer.isAdmin) {
+      if (!myPlayer.quizCompleted || !myPlayer.votingPaperCount || myPlayer.votingPaperCount <= 0) {
+        showToast('⚠️ 투표용지가 없습니다! 광장 우측의 [팩트체크 NPC 🤖] 퀴즈를 통과하고 투표용지 3장을 받아오세요.', 'warn');
+        return;
+      }
+    }
     socket.emit('submitBallotToBox', { choice });
   }
 
@@ -1015,6 +1076,167 @@
     noticeBoardModal.classList.remove('hidden');
   }
 
+  // --- 8-1. 🤖 팩트체크 NPC 퀴즈 5문항 시스템 (중학교 1학년 사회: 국민 주권과 시민 자치) ---
+  const QUIZ_QUESTIONS = [
+    {
+      topic: 'Q1. 국민 주권의 원리',
+      question: '대한민국 헌법 제1조 제2항: "대한민국의 주권은 (       )에게 있고, 모든 권력은 (       )(으)로부터 나온다." 괄호에 들어갈 가장 알맞은 말은?',
+      options: ['① 대통령', '② 국민', '③ 국회의원'],
+      answerIndex: 1,
+      explanation: '대한민국의 주권은 모든 권력의 원천인 국민에게 있습니다.'
+    },
+    {
+      topic: 'Q2. 민주 정치의 형태',
+      question: '시민들이 선거를 통해 대표자를 선출하고, 선출된 대표자가 국가의 중요한 정책을 결정하는 민주 정치 제도는?',
+      options: ['① 직접 민주 정치', '② 대의 민주 정치 (간접 민주제)', '③ 군주제'],
+      answerIndex: 1,
+      explanation: '현대 사회에서는 현실적인 여건을 고려하여 대부분 대의 민주 정치를 운영하고 있습니다.'
+    },
+    {
+      topic: 'Q3. 민주 선거의 4대 원칙',
+      question: '어떤 유권자가 어느 후보자나 안건에 표를 던졌는지 타인이 전혀 알 수 없도록 보장하는 선거 원칙은?',
+      options: ['① 비밀 선거', '② 보통 선거', '③ 평등 선거'],
+      answerIndex: 0,
+      explanation: '비밀 선거는 외부 압력 없이 유권자가 자유롭게 소신 투표할 수 있도록 보장합니다.'
+    },
+    {
+      topic: 'Q4. 시민 자치와 지방 자치',
+      question: '지역 주민들이 자신이 거주하는 지역의 문제와 조례를 스스로 결정하고 처리하는 풀뿌리 민주주의 제도는?',
+      options: ['① 중앙 집권 제도', '② 지방 자치 제도', '③ 사법 시험 제도'],
+      answerIndex: 1,
+      explanation: '지방 자치 제도는 주민이 직접 지역 문제를 협의하고 해결하는 시민 자치의 핵심입니다.'
+    },
+    {
+      topic: 'Q5. 민주적 의사결정의 태도',
+      question: '민주주의 사회에서 안건에 대한 찬반 의견이 팽팽히 맞설 때 가장 바람직한 문제 해결 원리는?',
+      options: ['① 다수의 힘으로 소수 의견 묵살하기', '② 대화와 타협을 통한 소수 의견 존중', '③ 갈등을 피하기 위해 침묵하기'],
+      answerIndex: 1,
+      explanation: '다수결 원리를 취하더라도 대화와 타협을 거치고 소수 의견을 경청하는 것이 민주주의의 기본 정신입니다.'
+    }
+  ];
+
+  let currentQuizIndex = 0;
+  let isQuizSubmitting = false;
+
+  if (btnCloseQuiz) {
+    btnCloseQuiz.addEventListener('click', closeQuizModal);
+  }
+
+  function openQuizModal() {
+    currentQuizIndex = 0;
+    isQuizSubmitting = false;
+    renderCurrentQuiz();
+    if (quizFeedbackBox) quizFeedbackBox.classList.add('hidden');
+    if (quizModal) quizModal.classList.remove('hidden');
+    playAudio(audioPop, 0.7);
+  }
+
+  function closeQuizModal() {
+    if (quizModal) quizModal.classList.add('hidden');
+  }
+
+  function renderCurrentQuiz() {
+    const q = QUIZ_QUESTIONS[currentQuizIndex];
+    if (!q) return;
+
+    if (quizStepBadge) quizStepBadge.textContent = `진행도 ${currentQuizIndex + 1} / 5`;
+    if (quizProgressBar) quizProgressBar.style.width = `${((currentQuizIndex + 1) / 5) * 100}%`;
+    if (quizTopicBadge) quizTopicBadge.textContent = q.topic;
+    if (quizQuestionBox) quizQuestionBox.textContent = q.question;
+    if (quizFeedbackBox) {
+      quizFeedbackBox.className = 'quiz-feedback-box hidden';
+      quizFeedbackBox.textContent = '';
+    }
+
+    if (!quizOptionsList) return;
+    quizOptionsList.innerHTML = '';
+    q.options.forEach((optText, idx) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn-quiz-option';
+      btn.innerHTML = `<span class="opt-text">${optText}</span>`;
+      btn.addEventListener('click', () => handleQuizOptionClick(idx, btn));
+      quizOptionsList.appendChild(btn);
+    });
+  }
+
+  function handleQuizOptionClick(chosenIndex, btnElement) {
+    if (isQuizSubmitting) return;
+    const q = QUIZ_QUESTIONS[currentQuizIndex];
+    const isCorrect = chosenIndex === q.answerIndex;
+
+    if (isCorrect) {
+      isQuizSubmitting = true;
+      btnElement.classList.add('correct');
+      if (quizFeedbackBox) {
+        quizFeedbackBox.className = 'quiz-feedback-box correct';
+        quizFeedbackBox.textContent = `정답입니다! 👏 ${q.explanation}`;
+        quizFeedbackBox.classList.remove('hidden');
+      }
+      playAudio(audioSuccess, 0.8);
+
+      setTimeout(() => {
+        if (currentQuizIndex < QUIZ_QUESTIONS.length - 1) {
+          currentQuizIndex++;
+          isQuizSubmitting = false;
+          renderCurrentQuiz();
+        } else {
+          // 5문제 모두 정답 완료!
+          finishQuizSuccessfully();
+        }
+      }, 550);
+    } else {
+      isQuizSubmitting = true;
+      btnElement.classList.add('wrong');
+      if (quizFeedbackBox) {
+        quizFeedbackBox.className = 'quiz-feedback-box wrong';
+        quizFeedbackBox.textContent = '다시 한번 생각해 보세요! ❌ (1.2초 후 1번 문제부터 다시 도전합니다)';
+        quizFeedbackBox.classList.remove('hidden');
+      }
+      playAudio(audioPop, 0.6);
+
+      setTimeout(() => {
+        currentQuizIndex = 0;
+        isQuizSubmitting = false;
+        renderCurrentQuiz();
+      }, 1200);
+    }
+  }
+
+  function finishQuizSuccessfully() {
+    closeQuizModal();
+    isQuizSubmitting = false;
+
+    // 축하 연출
+    playAudio(audioSuccess, 1.0);
+    spawnConfettiBurst();
+
+    if (socket) {
+      socket.emit('completeQuiz');
+    }
+
+    showToast('축하합니다! 3개의 안건에 투표할 수 있는 투표용지 3장(📜x3)을 획득했습니다.', '🎉');
+  }
+
+  function handleNpcInteract() {
+    if (!myPlayer) return;
+    const npc = mapConfig.quizNpc;
+    if (!npc) return;
+
+    const dist = Math.hypot(myPlayer.x - npc.x, myPlayer.y - npc.y);
+    if (dist > 130) {
+      showToast('⚠️ 팩트체크 NPC에게 조금 더 가까이 다가가서 터치해 주세요! (반경 130px 이내)', 'warn');
+      return;
+    }
+
+    if (myPlayer.quizCompleted) {
+      showToast(`이미 퀴즈를 통과했습니다. 중앙 투표함에서 안건에 투표하세요! (남은 투표용지: 📜x${myPlayer.votingPaperCount || 0})`, 'info');
+      return;
+    }
+
+    openQuizModal();
+  }
+
   // --- 9. 👥 MMO 학생 아바타 터치 상호작용 (하이파이브, 귓속말) ---
   canvas.addEventListener('click', (e) => {
     const worldClickX = e.clientX + camera.x - screenWidth / 2;
@@ -1022,9 +1244,20 @@
 
     // 1. 게시판 터치 판정
     const b = mapConfig.noticeBoard;
-    if (Math.abs(worldClickX - b.x) <= b.w / 2 && Math.abs(worldClickY - b.y) <= b.h / 2) {
+    if (b && Math.abs(worldClickX - b.x) <= b.w / 2 && Math.abs(worldClickY - b.y) <= b.h / 2) {
       openNoticeBoard();
       return;
+    }
+
+    // 1-1. 팩트체크 NPC 터치 판정
+    const npc = mapConfig.quizNpc;
+    if (npc) {
+      const clickDistToNpc = Math.hypot(worldClickX - npc.x, worldClickY - npc.y);
+      if (clickDistToNpc <= 45 || (Math.abs(worldClickX - npc.x) <= npc.w / 2 + 10 && Math.abs(worldClickY - npc.y) <= npc.h / 2 + 10)) {
+        tapMove.active = false;
+        handleNpcInteract();
+        return;
+      }
     }
 
     // 2. 다른 학생 아바타 터치 판정
@@ -1152,6 +1385,12 @@
     const worldX = Math.round(touch.clientX + camera.x - screenWidth / 2);
     const worldY = Math.round(touch.clientY + camera.y - screenHeight / 2);
 
+    // 게시판 또는 NPC 터치 시 걸어가지 않고 즉시 상호작용
+    const npc = mapConfig.quizNpc;
+    if (npc && Math.hypot(worldX - npc.x, worldY - npc.y) <= 45) return;
+    const b = mapConfig.noticeBoard;
+    if (b && Math.abs(worldX - b.x) <= b.w / 2 && Math.abs(worldY - b.y) <= b.h / 2) return;
+
     tapMove.active = true;
     tapMove.targetX = worldX;
     tapMove.targetY = worldY;
@@ -1162,6 +1401,12 @@
     if (e.button !== 0) return; // 마우스 좌클릭만 반응
     const worldX = Math.round(e.clientX + camera.x - screenWidth / 2);
     const worldY = Math.round(e.clientY + camera.y - screenHeight / 2);
+
+    // 게시판 또는 NPC 클릭 시 이동 무시 (클릭 이벤트로 모달 실행)
+    const npc = mapConfig.quizNpc;
+    if (npc && Math.hypot(worldX - npc.x, worldY - npc.y) <= 45) return;
+    const b = mapConfig.noticeBoard;
+    if (b && Math.abs(worldX - b.x) <= b.w / 2 && Math.abs(worldY - b.y) <= b.h / 2) return;
 
     tapMove.active = true;
     tapMove.targetX = worldX;
@@ -2566,6 +2811,103 @@
     ctx.fillStyle = '#a7f3d0';
     ctx.font = 'bold 10px sans-serif';
     ctx.fillText('자치 게시판 (터치)', board.x, board.y - board.h / 2 - 14);
+
+    // 3. [팩트체크 NPC 🤖]
+    const npc = mapConfig.quizNpc;
+    if (npc) {
+      // 바닥 그림자
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
+      ctx.beginPath();
+      ctx.ellipse(npc.x, npc.y + 24, 28, 10, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 근접 시 빛나는 인터랙션 펄스 링 (130px 이내)
+      if (myPlayer) {
+        const dist = Math.hypot(myPlayer.x - npc.x, myPlayer.y - npc.y);
+        if (dist <= 130) {
+          ctx.save();
+          const pulse = (Math.sin(Date.now() / 180) + 1) / 2;
+          ctx.strokeStyle = `rgba(56, 189, 248, ${0.45 + pulse * 0.45})`;
+          ctx.lineWidth = 3 + pulse * 2;
+          ctx.beginPath();
+          ctx.arc(npc.x, npc.y + 8, 44 + pulse * 8, 0, Math.PI * 2);
+          ctx.stroke();
+
+          // 반짝이는 작은 파티클 점 2개
+          const angle1 = (Date.now() / 400) % (Math.PI * 2);
+          const angle2 = angle1 + Math.PI;
+          ctx.fillStyle = '#38bdf8';
+          ctx.beginPath();
+          ctx.arc(npc.x + Math.cos(angle1) * (44 + pulse * 8), npc.y + 8 + Math.sin(angle1) * (44 + pulse * 8), 3, 0, Math.PI * 2);
+          ctx.arc(npc.x + Math.cos(angle2) * (44 + pulse * 8), npc.y + 8 + Math.sin(angle2) * (44 + pulse * 8), 3, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+
+      // 로봇 NPC 본체 (세련된 사이언 메탈릭 라운드 렉트)
+      ctx.save();
+      ctx.fillStyle = '#0284c7';
+      drawRoundRect(ctx, npc.x - npc.w / 2, npc.y - npc.h / 2, npc.w, npc.h, 14);
+      ctx.fill();
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+
+      // 로봇 얼굴 모니터 (어두운 디스플레이 화면)
+      ctx.fillStyle = '#0f172a';
+      drawRoundRect(ctx, npc.x - npc.w / 2 + 7, npc.y - npc.h / 2 + 7, npc.w - 14, 26, 8);
+      ctx.fill();
+      ctx.strokeStyle = '#0369a1';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // 로봇 표정 (^ _ ^) - 깜빡임 애니메이션
+      const blink = Math.sin(Date.now() / 350);
+      ctx.fillStyle = '#38bdf8';
+      ctx.font = 'bold 13px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      if (blink > 0.94) {
+        ctx.fillText('- _ -', npc.x, npc.y - npc.h / 2 + 20);
+      } else {
+        ctx.fillText('^ _ ^', npc.x, npc.y - npc.h / 2 + 20);
+      }
+
+      // 가슴 중앙 앰블럼 (번개/체크마크)
+      ctx.fillStyle = '#fef08a';
+      ctx.font = 'bold 15px sans-serif';
+      ctx.fillText('⚡', npc.x, npc.y + 14);
+
+      // 머리 안테나 기둥 & 반짝이는 전구 구체
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(npc.x, npc.y - npc.h / 2);
+      ctx.lineTo(npc.x, npc.y - npc.h / 2 - 9);
+      ctx.stroke();
+
+      const bulbPulse = (Math.sin(Date.now() / 220) + 1) / 2;
+      ctx.fillStyle = `rgba(250, 204, 21, ${0.7 + bulbPulse * 0.3})`;
+      ctx.beginPath();
+      ctx.arc(npc.x, npc.y - npc.h / 2 - 12, 5 + bulbPulse * 1.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 상단 이름표 뱃지
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+      drawRoundRect(ctx, npc.x - 56, npc.y - npc.h / 2 - 38, 112, 22, 11);
+      ctx.fill();
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      ctx.fillStyle = '#7dd3fc';
+      ctx.font = 'bold 11px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('팩트체크 NPC 🤖', npc.x, npc.y - npc.h / 2 - 27);
+      ctx.restore();
+    }
   }
 
   function drawCafes() {

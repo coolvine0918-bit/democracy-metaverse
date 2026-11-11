@@ -360,6 +360,49 @@
     </div>
   </div>
 
+  <!-- ================= 4. 🤖 팩트체크 NPC 시민자격 퀴즈 모달 (태블릿 최적화) ================= -->
+  <div id="quizModal" class="modal-overlay hidden">
+    <div class="custom-dialog-card quiz-card">
+      <div class="dialog-header">
+        <div class="quiz-header-title">
+          <span class="quiz-header-icon">🤖</span>
+          <div>
+            <h3>팩트체크 시민자격 퀴즈</h3>
+            <small>중학교 1학년 사회 [국민 주권과 시민 자치] 5문항</small>
+          </div>
+        </div>
+        <button id="btnCloseQuiz" class="btn-close-drawer">✕</button>
+      </div>
+
+      <!-- 진행도 & 보상 안내 -->
+      <div class="quiz-progress-panel">
+        <div class="quiz-progress-info">
+          <span class="quiz-step-badge" id="quizStepBadge">진행도 1 / 5</span>
+          <span class="quiz-reward-preview">통과 보상: <b>투표용지 3장(📜x3)</b></span>
+        </div>
+        <div class="quiz-progress-bar-wrap">
+          <div id="quizProgressBar" class="quiz-progress-bar-fill" style="width: 20%;"></div>
+        </div>
+      </div>
+
+      <!-- 퀴즈 문항 영역 -->
+      <div class="quiz-content-panel">
+        <div class="quiz-topic-badge" id="quizTopicBadge">Q1. 국민 주권의 원리</div>
+        <div class="quiz-question-box" id="quizQuestionBox">
+          대한민국 헌법 제1조 제2항: "대한민국의 주권은 ( &nbsp; )에게 있고, 모든 권력은 ( &nbsp; )(으)로부터 나온다."
+        </div>
+
+        <!-- 태블릿 대형 터치형 보기 버튼 목록 -->
+        <div class="quiz-options-list" id="quizOptionsList">
+          <!-- JS 동적 생성 -->
+        </div>
+
+        <!-- 피드백 메시지 박스 -->
+        <div id="quizFeedbackBox" class="quiz-feedback-box hidden"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- ================= 5. 👥 학생 아바타 터치 시 MMO 상호작용 팝업 ================= -->
   <div id="playerInteractMenu" class="interact-menu hidden">
     <div class="interact-header">

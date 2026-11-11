@@ -40,6 +40,13 @@ const MAP_CONFIG = {
     h: 44,
     name: '마을 자치 게시판 📋'
   },
+  quizNpc: {
+    x: 1360,
+    y: 840,
+    w: 56,
+    h: 64,
+    name: '팩트체크 NPC 🤖'
+  },
   fountain: {
     x: 1200,
     y: 960,
@@ -217,6 +224,8 @@ function getQuestProgressSummary() {
         nickname: p.nickname,
         completedCount,
         hasBadge: p.hasBadge,
+        quizCompleted: !!p.quizCompleted,
+        votingPaperCount: p.votingPaperCount || 0,
         vote: p.vote,
         quest: p.quest,
         joinedAt: p.joinedAt
@@ -241,6 +250,8 @@ function getConnectedStudentsList() {
         vote: p.vote,
         handRaised: p.handRaised,
         hasBadge: p.hasBadge,
+        quizCompleted: !!p.quizCompleted,
+        votingPaperCount: p.votingPaperCount || 0,
         joinedAt: p.joinedAt
       });
     }
@@ -343,6 +354,8 @@ io.on('connection', (socket) => {
       currentStance: 'neutral', // 'pro' | 'con' | 'neutral'
       handRaised: false,
       hasBadge: false,
+      quizCompleted: !!isAdmin, // 교사는 기본 통과
+      votingPaperCount: isAdmin ? 99 : 0, // 학생은 퀴즈 통과 시 3장 지급
       joinedAt: Date.now(),
       quest: {
         m1: false,
@@ -350,10 +363,11 @@ io.on('connection', (socket) => {
         m3: 0,
         m4: false
       },
-      inventory: [
+      inventory: isAdmin ? [
+        { id: 'id_card', name: '교사 관리자 신분증', icon: '🧑‍🏫', desc: '총회 관리자 신분증' },
+        { id: 'voting_papers', name: '의결 투표용지 (무제한)', icon: '📜', count: 99, type: 'ballot', voteChoice: 'agree', desc: '관리자 시연용 투표용지' }
+      ] : [
         { id: 'id_card', name: '시민 신분증', icon: '🪪', desc: `${safeClass} 소속 시민 신분증` },
-        { id: 'agree_ballot', name: '찬성 투표용지', icon: '📜', type: 'ballot', voteChoice: 'agree', desc: '안건 찬성 표결용 용지 (투표함에 드래그 투입)' },
-        { id: 'disagree_ballot', name: '반대 투표용지', icon: '📜', type: 'ballot', voteChoice: 'disagree', desc: '안건 반대 표결용 용지 (투표함에 드래그 투입)' },
         { id: 'debate_notes', name: '토론 노트', icon: '📔', desc: '조례안 쟁점 요약 수첩' }
       ],
       isAdmin: !!isAdmin
@@ -618,6 +632,56 @@ io.on('connection', (socket) => {
     }, 2500);
   });
 
+  // 3-2. 팩트체크 NPC 퀴즈 5문항 통과 시 보상 지급 (투표용지 3장 📜x3)
+  socket.on('completeQuiz', () => {
+    const player = players.get(socket.id);
+    if (!player) return;
+
+    if (player.quizCompleted) {
+      socket.emit('systemNotification', {
+        message: `이미 퀴즈를 통과했습니다. 중앙 투표함에서 안건에 투표하세요! (남은 투표용지: 📜x${player.votingPaperCount || 0})`,
+        type: 'info'
+      });
+      return;
+    }
+
+    player.quizCompleted = true;
+    player.votingPaperCount = 3;
+
+    // 인벤토리에 공식 의결 투표용지 3장 추가
+    let paperItem = player.inventory.find(i => i.id === 'voting_papers');
+    if (!paperItem) {
+      paperItem = {
+        id: 'voting_papers',
+        name: '의결 투표용지 (3장)',
+        icon: '📜',
+        count: 3,
+        type: 'ballot',
+        voteChoice: 'agree',
+        desc: '총회 3개 안건 표결용 공식 투표용지 세트 (투표함에 투입 시 1장씩 소모)'
+      };
+      player.inventory.push(paperItem);
+    } else {
+      paperItem.count = 3;
+      paperItem.name = '의결 투표용지 (3장)';
+    }
+
+    socket.emit('quizRewardGranted', {
+      quizCompleted: true,
+      votingPaperCount: 3,
+      inventory: player.inventory,
+      message: '축하합니다! 3개의 안건에 투표할 수 있는 투표용지 3장(📜x3)을 획득했습니다.'
+    });
+
+    io.emit('playerStatusChanged', {
+      id: player.id,
+      quizCompleted: true,
+      votingPaperCount: 3
+    });
+    io.emit('questProgressUpdated', getQuestProgressSummary());
+    io.emit('studentListUpdated', getConnectedStudentsList());
+  });
+
   // 4. 인벤토리 투표용지 -> 투표함 투입 로직
   socket.on('submitBallotToBox', (data) => {
     const player = players.get(socket.id);
@@ -632,6 +696,29 @@ io.on('connection', (socket) => {
     if (dist > 220) {
       socket.emit('systemNotification', { message: '광장 중앙의 [투표함 🗳️] 앞으로 다가가서 투표용지를 넣어주세요!', type: 'warn' });
       return;
+    }
+
+    // [투표용지 소지 검증]: 학생의 경우 팩트체크 NPC 퀴즈 통과 및 잔여 투표용지가 있어야 투표 가능
+    if (!player.isAdmin) {
+      if (!player.quizCompleted || !player.votingPaperCount || player.votingPaperCount <= 0) {
+        socket.emit('systemNotification', {
+          message: '⚠️ 투표용지가 없습니다! 광장 우측의 [팩트체크 NPC 🤖] 퀴즈를 통과하고 투표용지 3장을 받아오세요.',
+          type: 'warn'
+        });
+        return;
+      }
+      player.votingPaperCount = Math.max(0, player.votingPaperCount - 1);
+      const paperItem = player.inventory.find(i => i.id === 'voting_papers');
+      if (paperItem) {
+        paperItem.count = player.votingPaperCount;
+        paperItem.name = player.votingPaperCount > 0 
+          ? `의결 투표용지 (${player.votingPaperCount}장 남음)`
+          : '의결 투표용지 (소진됨)';
+      }
+      socket.emit('votingPaperCountUpdated', {
+        votingPaperCount: player.votingPaperCount,
+        inventory: player.inventory
+      });
     }
 
     const { choice } = data;
@@ -657,13 +744,16 @@ io.on('connection', (socket) => {
     io.emit('playerStatusChanged', {
       id: player.id,
       statusEmoji: player.statusEmoji,
-      vote: player.vote
+      vote: player.vote,
+      votingPaperCount: player.votingPaperCount
     });
     io.emit('voteTallyUpdated', computeVoteTally());
     io.emit('questProgressUpdated', getQuestProgressSummary());
+    io.emit('studentListUpdated', getConnectedStudentsList());
 
+    const remainingText = !player.isAdmin ? ` (남은 투표용지: 📜x${player.votingPaperCount}장)` : '';
     socket.emit('systemNotification', {
-      message: `🗳️ 투표용지가 성공적으로 투표함에 들어갔습니다! (${choice === 'agree' ? '찬성' : '반대'})`,
+      message: `🗳️ 투표용지가 성공적으로 투표함에 들어갔습니다! (${choice === 'agree' ? '찬성' : '반대'})${remainingText}`,
       type: 'success'
     });
   });
@@ -674,14 +764,38 @@ io.on('connection', (socket) => {
     if (!player) return;
 
     const { choice } = data;
-    if (choice === 'agree') {
-      player.vote = 'agree';
-      player.statusEmoji = '✅';
-      player.quest.m4 = true;
-    } else if (choice === 'disagree') {
-      player.vote = 'disagree';
-      player.statusEmoji = '❌';
-      player.quest.m4 = true;
+    if (choice === 'agree' || choice === 'disagree') {
+      if (!player.isAdmin) {
+        if (!player.quizCompleted || !player.votingPaperCount || player.votingPaperCount <= 0) {
+          socket.emit('systemNotification', {
+            message: '⚠️ 투표용지가 없습니다! 광장 우측의 [팩트체크 NPC 🤖] 퀴즈를 통과하고 투표용지 3장을 받아오세요.',
+            type: 'warn'
+          });
+          return;
+        }
+        player.votingPaperCount = Math.max(0, player.votingPaperCount - 1);
+        const paperItem = player.inventory.find(i => i.id === 'voting_papers');
+        if (paperItem) {
+          paperItem.count = player.votingPaperCount;
+          paperItem.name = player.votingPaperCount > 0 
+            ? `의결 투표용지 (${player.votingPaperCount}장 남음)`
+            : '의결 투표용지 (소진됨)';
+        }
+        socket.emit('votingPaperCountUpdated', {
+          votingPaperCount: player.votingPaperCount,
+          inventory: player.inventory
+        });
+      }
+
+      if (choice === 'agree') {
+        player.vote = 'agree';
+        player.statusEmoji = '✅';
+        player.quest.m4 = true;
+      } else {
+        player.vote = 'disagree';
+        player.statusEmoji = '❌';
+        player.quest.m4 = true;
+      }
     } else {
       player.vote = null;
       player.statusEmoji = player.handRaised ? '✋' : '';
@@ -693,10 +807,12 @@ io.on('connection', (socket) => {
     io.emit('playerStatusChanged', {
       id: player.id,
       statusEmoji: player.statusEmoji,
-      vote: player.vote
+      vote: player.vote,
+      votingPaperCount: player.votingPaperCount
     });
     io.emit('voteTallyUpdated', computeVoteTally());
     io.emit('questProgressUpdated', getQuestProgressSummary());
+    io.emit('studentListUpdated', getConnectedStudentsList());
   });
 
   // 6. 퀘스트 단계 완료
@@ -837,6 +953,14 @@ io.on('connection', (socket) => {
       player.hasBadge = false;
       player.speechText = '';
       player.quest = { m1: false, m2: false, m3: 0, m4: false };
+      if (!player.isAdmin) {
+        player.quizCompleted = false;
+        player.votingPaperCount = 0;
+        player.inventory = [
+          { id: 'id_card', name: '시민 신분증', icon: '🪪', desc: `${newClass} 소속 시민 신분증` },
+          { id: 'debate_notes', name: '토론 노트', icon: '📔', desc: '조례안 쟁점 요약 수첩' }
+        ];
+      }
     }
 
     io.emit('classSessionReset', {
