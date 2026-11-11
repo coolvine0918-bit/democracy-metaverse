@@ -145,8 +145,13 @@
   const tallyDisagreePercent = document.getElementById('tallyDisagreePercent');
   const tallyUndecidedCount = document.getElementById('tallyUndecidedCount');
   const tallyUndecidedPercent = document.getElementById('tallyUndecidedPercent');
+  const tallyTotalCount = document.getElementById('tallyTotalCount');
   const barAgree = document.getElementById('barAgree');
+  const barNeutral = document.getElementById('barNeutral');
   const barDisagree = document.getElementById('barDisagree');
+  const barAgreeText = document.getElementById('barAgreeText');
+  const barNeutralText = document.getElementById('barNeutralText');
+  const barDisagreeText = document.getElementById('barDisagreeText');
   const speakerQueueList = document.getElementById('speakerQueueList');
   const handCount = document.getElementById('handCount');
   const cafeMonitoringGrid = document.getElementById('cafeMonitoringGrid');
@@ -392,6 +397,9 @@
 
       updateVoteButtonsUI(voteActive);
       updateVoteTallyUI(data.voteTally);
+      if (data.stanceTally) {
+        updateStanceTallyUI(data.stanceTally);
+      }
       updateCafeMonitoringUI(data.cafeStatus);
       updateSpeakerQueueUI(data.handRaiseQueue);
       updateStudentQuestMonitoringUI(data.questProgressList);
@@ -525,6 +533,7 @@
           myPlayer.cafeId = null;
           camera.x = pData.x;
           camera.y = pData.y;
+          handleStanceTransition(myPlayer.x, myPlayer.y);
           // 내 아바타 위치에 화려한 소환 빛무리 & 파동 이펙트 폭발
           triggerTeleportArrivalEffect(pData.x, pData.y);
         } else {
@@ -655,6 +664,20 @@
 
     socket.on('voteTallyUpdated', (tally) => {
       updateVoteTallyUI(tally);
+    });
+
+    // 실시간 아고라 진영 여론 집계 수신
+    socket.on('stanceTallyUpdated', (tally) => {
+      updateStanceTallyUI(tally);
+    });
+
+    socket.on('playerStanceChanged', (data) => {
+      if (data.id === myId && myPlayer) {
+        myPlayer.currentStance = data.stance;
+      } else {
+        const p = otherPlayers.get(data.id);
+        if (p) p.currentStance = data.stance;
+      }
     });
 
     socket.on('cafeStatusUpdated', (statusList) => {
@@ -1445,6 +1468,40 @@
     }
   }
 
+  // 실시간 3색 진영 여론 게이지 바 및 카운트 UI 업데이트
+  function updateStanceTallyUI(tally) {
+    if (!tally) return;
+    const total = tally.total || 0;
+    const pro = tally.pro || 0;
+    const con = tally.con || 0;
+    const neutral = tally.neutral || 0;
+    const proPct = tally.proPercent || 0;
+    const conPct = tally.conPercent || 0;
+    const neutralPct = tally.neutralPercent || 0;
+
+    if (tallyTotalCount) tallyTotalCount.textContent = total;
+    if (tallyAgreeCount) tallyAgreeCount.textContent = `${pro}명`;
+    if (tallyAgreePercent) tallyAgreePercent.textContent = `(${proPct}%)`;
+    if (tallyUndecidedCount) tallyUndecidedCount.textContent = `${neutral}명`;
+    if (tallyUndecidedPercent) tallyUndecidedPercent.textContent = `(${neutralPct}%)`;
+    if (tallyDisagreeCount) tallyDisagreeCount.textContent = `${con}명`;
+    if (tallyDisagreePercent) tallyDisagreePercent.textContent = `(${conPct}%)`;
+
+    // 3색 가로형 프로그레스 바 너비 및 라벨 갱신
+    if (barAgree) {
+      barAgree.style.width = `${proPct}%`;
+      if (barAgreeText) barAgreeText.textContent = proPct >= 8 ? `${proPct}%` : '';
+    }
+    if (barNeutral) {
+      barNeutral.style.width = `${neutralPct}%`;
+      if (barNeutralText) barNeutralText.textContent = neutralPct >= 8 ? `${neutralPct}%` : '';
+    }
+    if (barDisagree) {
+      barDisagree.style.width = `${conPct}%`;
+      if (barDisagreeText) barDisagreeText.textContent = conPct >= 8 ? `${conPct}%` : '';
+    }
+  }
+
   function updateSpeakerQueueUI(queue) {
     handCount.textContent = queue.length;
     speakerQueueList.innerHTML = '';
@@ -1943,6 +2000,53 @@
     });
   }
 
+  // --- [14-3. 아바타 좌표 기반 찬반 진영 판별 및 DB 부하 방지 상태 감지] ---
+  let myCurrentStance = 'neutral'; // 'pro' | 'con' | 'neutral'
+
+  function checkStanceZone(x, y) {
+    const plaza = mapConfig.plaza;
+    const dist = Math.hypot(x - plaza.centerX, y - plaza.centerY);
+
+    // 아고라 광장 반경(300px) 내부인 경우에만 X좌표 기준 좌/우/중립 판별
+    if (dist <= plaza.radius + 30) {
+      if (x < plaza.centerX - 60) {
+        return 'pro';     // 왼쪽: 찬성 구역 (PRO)
+      } else if (x > plaza.centerX + 60) {
+        return 'con';     // 오른쪽: 반대 구역 (CON)
+      } else {
+        return 'neutral'; // 중앙: 중립 구역 (NEUTRAL)
+      }
+    }
+    return 'neutral'; // 광장 밖은 기본 중립
+  }
+
+  function handleStanceTransition(x, y) {
+    if (!myPlayer || myPlayer.isAdmin) return;
+
+    const newStance = checkStanceZone(x, y);
+
+    // [핵심 - DB 부하 방지]: '이전 진영'과 '현재 진영'이 경계를 넘어 달라졌을 때만 1회 DB 업데이트!
+    if (newStance !== myCurrentStance) {
+      myCurrentStance = newStance;
+      myPlayer.currentStance = newStance;
+
+      // 1. 서버/DB로 진영 상태 1회 전송
+      if (socket) {
+        socket.emit('updateStance', { stance: newStance });
+      }
+
+      // 2. 태블릿 학생 화면에 즉각적인 피드백
+      const stanceInfo = {
+        pro: { text: '찬성 구역(✅)으로 이동했습니다.', icon: '✅' },
+        con: { text: '반대 구역(❌)으로 이동했습니다.', icon: '❌' },
+        neutral: { text: '중립/숙고 구역(⏳)으로 이동했습니다.', icon: '⏳' }
+      };
+      const info = stanceInfo[newStance] || stanceInfo.neutral;
+      showToast(info.text, info.icon);
+      if (audioPop) playAudio(audioPop, 0.4);
+    }
+  }
+
   // --- 14. 파티클 이펙트 시스템 ---
   function spawnBallotParticles(x, y, choice) {
     const color = choice === 'agree' ? '#10b981' : '#ef4444';
@@ -2046,6 +2150,9 @@
 
       myPlayer.walkCycle = (myPlayer.walkCycle || 0) + dt * 10;
       myPlayer.isMoving = true;
+
+      // [실시간 찬반 진영 이동 감지 및 조건부 DB 업데이트]
+      handleStanceTransition(myPlayer.x, myPlayer.y);
 
       if (Math.abs(stepX) > Math.abs(stepY)) {
         myPlayer.facing = stepX > 0 ? 'right' : 'left';
@@ -2283,13 +2390,88 @@
 
   function drawCentralPlaza() {
     const plaza = mapConfig.plaza;
+
+    // 1. 기본 원형 아고라 석조 바닥
     ctx.fillStyle = '#e8dec8';
     ctx.beginPath();
     ctx.arc(plaza.centerX, plaza.centerY, plaza.radius, 0, Math.PI * 2);
     ctx.fill();
 
+    // 2. [실시간 찬/반/중립 3색 진영 바닥 렌더링 (Visuals)]
+    ctx.save();
+    // 아고라 원형 바운더리 내부로 클리핑
+    ctx.beginPath();
+    ctx.arc(plaza.centerX, plaza.centerY, plaza.radius, 0, Math.PI * 2);
+    ctx.clip();
+
+    const leftBoundaryX = plaza.centerX - 60;   // 1140
+    const rightBoundaryX = plaza.centerX + 60;  // 1260
+    const topY = plaza.centerY - plaza.radius;
+    const zoneHeight = plaza.radius * 2;
+
+    // [왼쪽 옅은 초록색]: 찬성 구역 (Pro Zone ✅)
+    ctx.fillStyle = 'rgba(16, 185, 129, 0.22)';
+    ctx.fillRect(plaza.centerX - plaza.radius, topY, plaza.radius - 60, zoneHeight);
+
+    // [오른쪽 옅은 빨간색]: 반대 구역 (Con Zone ❌)
+    ctx.fillStyle = 'rgba(239, 68, 68, 0.22)';
+    ctx.fillRect(rightBoundaryX, topY, plaza.radius - 60, zoneHeight);
+
+    // [중앙 옅은 회색]: 중립/숙고 구역 (Neutral Zone ⏳)
+    ctx.fillStyle = 'rgba(148, 163, 184, 0.25)';
+    ctx.fillRect(leftBoundaryX, topY, 120, zoneHeight);
+
+    // 점선 구분 경계선 (Dashed Boundary Lines)
+    ctx.setLineDash([8, 6]);
+    ctx.lineWidth = 2.5;
+
+    ctx.strokeStyle = 'rgba(16, 185, 129, 0.7)';
+    ctx.beginPath();
+    ctx.moveTo(leftBoundaryX, topY);
+    ctx.lineTo(leftBoundaryX, topY + zoneHeight);
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(239, 68, 68, 0.7)';
+    ctx.beginPath();
+    ctx.moveTo(rightBoundaryX, topY);
+    ctx.lineTo(rightBoundaryX, topY + zoneHeight);
+    ctx.stroke();
+
+    ctx.setLineDash([]); // 점선 해제
+
+    // 바닥 반투명 워터마크 텍스트
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    // 1) 찬성 텍스트
+    ctx.font = 'bold 30px sans-serif';
+    ctx.fillStyle = 'rgba(16, 185, 129, 0.45)';
+    ctx.fillText('찬성 ✅', plaza.centerX - 165, plaza.centerY - 30);
+    ctx.font = 'bold 15px sans-serif';
+    ctx.fillStyle = 'rgba(5, 150, 105, 0.35)';
+    ctx.fillText('PRO ZONE', plaza.centerX - 165, plaza.centerY + 12);
+
+    // 2) 반대 텍스트
+    ctx.font = 'bold 30px sans-serif';
+    ctx.fillStyle = 'rgba(239, 68, 68, 0.45)';
+    ctx.fillText('반대 ❌', plaza.centerX + 165, plaza.centerY - 30);
+    ctx.font = 'bold 15px sans-serif';
+    ctx.fillStyle = 'rgba(220, 38, 38, 0.35)';
+    ctx.fillText('CON ZONE', plaza.centerX + 165, plaza.centerY + 12);
+
+    // 3) 중앙 상/하단 중립 텍스트
+    ctx.font = 'bold 18px sans-serif';
+    ctx.fillStyle = 'rgba(100, 116, 139, 0.55)';
+    ctx.fillText('중립 / 숙고 ⏳', plaza.centerX, plaza.centerY - 160);
+    ctx.fillText('중립 / 숙고 ⏳', plaza.centerX, plaza.centerY + 160);
+
+    ctx.restore(); // 클리핑 복원
+
+    // 3. 광장 석조 테두리 링
     ctx.strokeStyle = '#b8a98b';
     ctx.lineWidth = 10;
+    ctx.beginPath();
+    ctx.arc(plaza.centerX, plaza.centerY, plaza.radius, 0, Math.PI * 2);
     ctx.stroke();
 
     ctx.strokeStyle = '#8c7b61';
@@ -2298,7 +2480,7 @@
     ctx.arc(plaza.centerX, plaza.centerY, plaza.radius - 80, 0, Math.PI * 2);
     ctx.stroke();
 
-    // 분수대
+    // 4. 분수대
     const f = mapConfig.fountain;
     ctx.fillStyle = '#60a5fa';
     ctx.beginPath();
@@ -2314,15 +2496,15 @@
     ctx.arc(f.x, f.y, 16 + Math.sin(wave) * 6, 0, Math.PI * 2);
     ctx.fill();
 
-    // 광장 명판
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.8)';
-    drawRoundRect(ctx, plaza.centerX - 120, plaza.centerY - plaza.radius - 30, 240, 36, 18);
+    // 5. 광장 명판
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+    drawRoundRect(ctx, plaza.centerX - 130, plaza.centerY - plaza.radius - 32, 260, 36, 18);
     ctx.fill();
     ctx.fillStyle = '#ffffff';
-    ctx.font = 'bold 15px sans-serif';
+    ctx.font = 'bold 14px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('🏛️ 중앙 광장 (민주 아고라)', plaza.centerX, plaza.centerY - plaza.radius - 12);
+    ctx.fillText('🏛️ 시민 총회장 (찬·반 진영 광장)', plaza.centerX, plaza.centerY - plaza.radius - 14);
   }
 
   // 광장 핵심 오브젝트 (투표함 & 자치 게시판)

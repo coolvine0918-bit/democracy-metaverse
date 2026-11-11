@@ -483,29 +483,40 @@
           </button>
         </div>
 
-        <!-- 3. 실시간 찬/반 집계 현황판 -->
+        <!-- 3. 실시간 찬/반 진영 여론 & 투표 집계 현황판 -->
         <div class="admin-section tally-section">
-          <h4>📊 실시간 투표 집계 현황</h4>
-          <div class="tally-stats">
+          <div class="tally-header-row">
+            <h4>📊 실시간 진영 여론 & 투표 현황</h4>
+            <span class="tally-total-badge">총 학생: <b id="tallyTotalCount">0</b>명</span>
+          </div>
+          <div class="tally-stats stance-stats-3col">
             <div class="stat-box agree-box">
-              <span class="stat-label">찬성 ✅</span>
+              <span class="stat-label">찬성 진영 ✅</span>
               <span id="tallyAgreeCount" class="stat-num">0명</span>
               <span id="tallyAgreePercent" class="stat-percent">(0%)</span>
             </div>
-            <div class="stat-box disagree-box">
-              <span class="stat-label">반대 ❌</span>
-              <span id="tallyDisagreeCount" class="stat-num">0명</span>
-              <span id="tallyDisagreePercent" class="stat-percent">(0%)</span>
-            </div>
             <div class="stat-box undecided-box">
-              <span class="stat-label">미투표 ⏳</span>
+              <span class="stat-label">중립 / 숙고 ⏳</span>
               <span id="tallyUndecidedCount" class="stat-num">0명</span>
               <span id="tallyUndecidedPercent" class="stat-percent">(0%)</span>
             </div>
+            <div class="stat-box disagree-box">
+              <span class="stat-label">반대 진영 ❌</span>
+              <span id="tallyDisagreeCount" class="stat-num">0명</span>
+              <span id="tallyDisagreePercent" class="stat-percent">(0%)</span>
+            </div>
           </div>
-          <div class="tally-bar">
-            <div id="barAgree" class="bar-agree" style="width: 0%;"></div>
-            <div id="barDisagree" class="bar-disagree" style="width: 0%;"></div>
+          <!-- 3색 통합 가로형 여론 게이지 바 (Progress Bar) -->
+          <div class="stance-progress-bar">
+            <div id="barAgree" class="gauge-fill gauge-pro" style="width: 0%;" title="찬성">
+              <span id="barAgreeText"></span>
+            </div>
+            <div id="barNeutral" class="gauge-fill gauge-neutral" style="width: 100%;" title="중립/숙고">
+              <span id="barNeutralText">100%</span>
+            </div>
+            <div id="barDisagree" class="gauge-fill gauge-con" style="width: 0%;" title="반대">
+              <span id="barDisagreeText"></span>
+            </div>
           </div>
         </div>
 

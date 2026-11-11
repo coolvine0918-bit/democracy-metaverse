@@ -148,6 +148,37 @@ function computeVoteTally() {
   };
 }
 
+// 실시간 아고라 진영(찬성/반대/중립) 여론 집계 계산
+function computeStanceTally() {
+  let pro = 0;
+  let con = 0;
+  let neutral = 0;
+  let total = 0;
+
+  for (const p of players.values()) {
+    if (!p.isAdmin) {
+      total++;
+      if (p.currentStance === 'pro') pro++;
+      else if (p.currentStance === 'con') con++;
+      else neutral++;
+    }
+  }
+
+  const proPercent = total > 0 ? Math.round((pro / total) * 100) : 0;
+  const conPercent = total > 0 ? Math.round((con / total) * 100) : 0;
+  const neutralPercent = total > 0 ? Math.max(0, 100 - (proPercent + conPercent)) : 0;
+
+  return {
+    pro,
+    con,
+    neutral,
+    total,
+    proPercent,
+    conPercent,
+    neutralPercent
+  };
+}
+
 // 카페별 현황 데이터 요약
 function computeCafeStatus() {
   return MAP_CONFIG.cafes.map(cafe => {
@@ -309,6 +340,7 @@ io.on('connection', (socket) => {
       speechUntil: 0,
       cafeId: null,
       vote: null,
+      currentStance: 'neutral', // 'pro' | 'con' | 'neutral'
       handRaised: false,
       hasBadge: false,
       joinedAt: Date.now(),
@@ -337,6 +369,7 @@ io.on('connection', (socket) => {
       agenda: gameState.agenda,
       voteActive: gameState.voteActive,
       voteTally: computeVoteTally(),
+      stanceTally: computeStanceTally(),
       cafeStatus: computeCafeStatus(),
       handRaiseQueue: gameState.handRaiseQueue,
       noticeMaterials: NOTICE_MATERIALS,
@@ -351,6 +384,7 @@ io.on('connection', (socket) => {
 
     socket.broadcast.emit('playerJoined', newPlayer);
     io.emit('voteTallyUpdated', computeVoteTally());
+    io.emit('stanceTallyUpdated', computeStanceTally());
     io.emit('cafeStatusUpdated', computeCafeStatus());
     io.emit('questProgressUpdated', getQuestProgressSummary());
     io.emit('studentListUpdated', getConnectedStudentsList());
@@ -427,6 +461,26 @@ io.on('connection', (socket) => {
       facing: player.facing,
       cafeId: player.cafeId
     });
+  });
+
+  // 2-1. [아바타 진영 이동] 구역 경계선 통과 시에만 클라이언트에서 1회 전송
+  socket.on('updateStance', (data) => {
+    const player = players.get(socket.id);
+    if (!player || player.isAdmin) return;
+
+    const stance = data && data.stance ? data.stance : 'neutral';
+    if (['pro', 'con', 'neutral'].includes(stance)) {
+      player.currentStance = stance;
+
+      // 1. 유저 진영 상태 변경 알림
+      io.emit('playerStanceChanged', {
+        id: player.id,
+        stance: player.currentStance
+      });
+
+      // 2. 전체 여론 집계 브로드캐스트 (교사 콘솔 & 실시간 게이지)
+      io.emit('stanceTallyUpdated', computeStanceTally());
+    }
   });
 
   // 3. 채팅 메시지 및 카페 토론 미션 카운트
@@ -954,6 +1008,7 @@ io.on('connection', (socket) => {
 
       io.emit('playerLeft', { id: studentId, nickname: target.nickname });
       io.emit('voteTallyUpdated', computeVoteTally());
+      io.emit('stanceTallyUpdated', computeStanceTally());
       io.emit('cafeStatusUpdated', computeCafeStatus());
       io.emit('handRaiseQueueUpdated', gameState.handRaiseQueue);
       io.emit('questProgressUpdated', getQuestProgressSummary());
@@ -971,6 +1026,7 @@ io.on('connection', (socket) => {
 
       io.emit('playerLeft', { id: socket.id, nickname: player.nickname });
       io.emit('voteTallyUpdated', computeVoteTally());
+      io.emit('stanceTallyUpdated', computeStanceTally());
       io.emit('cafeStatusUpdated', computeCafeStatus());
       io.emit('handRaiseQueueUpdated', gameState.handRaiseQueue);
       io.emit('questProgressUpdated', getQuestProgressSummary());
