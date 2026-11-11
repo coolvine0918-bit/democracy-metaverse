@@ -517,6 +517,53 @@ io.on('connection', (socket) => {
     }, 4000);
   });
 
+  // 3-1. 태블릿 퀵 리액션 이모티콘 파티클 이벤트 (👍, 🤔, ❌ 등)
+  socket.on('quickReaction', (data) => {
+    const player = players.get(socket.id);
+    if (!player) return;
+
+    const emoji = (data && data.emoji ? data.emoji : '👍').slice(0, 4);
+    const now = Date.now();
+    player.statusEmoji = emoji;
+
+    const payload = {
+      playerId: player.id,
+      nickname: player.nickname,
+      x: player.x,
+      y: player.y,
+      emoji,
+      timestamp: now
+    };
+
+    // 광장 또는 소회의실 전체에 브로드캐스트
+    if (player.cafeId !== null) {
+      for (const [id, p] of players.entries()) {
+        if (p.cafeId === player.cafeId || p.isAdmin) {
+          io.to(id).emit('reactionBroadcast', payload);
+        }
+      }
+    } else {
+      io.emit('reactionBroadcast', payload);
+    }
+
+    // 2.5초 후 기본 상태 이모지로 복원
+    setTimeout(() => {
+      const curP = players.get(player.id);
+      if (curP && curP.statusEmoji === emoji) {
+        if (curP.speechText) curP.statusEmoji = '💬';
+        else if (curP.handRaised) curP.statusEmoji = '✋';
+        else if (curP.vote === 'agree') curP.statusEmoji = '✅';
+        else if (curP.vote === 'disagree') curP.statusEmoji = '❌';
+        else curP.statusEmoji = '';
+
+        io.emit('playerStatusChanged', {
+          id: curP.id,
+          statusEmoji: curP.statusEmoji
+        });
+      }
+    }, 2500);
+  });
+
   // 4. 인벤토리 투표용지 -> 투표함 투입 로직
   socket.on('submitBallotToBox', (data) => {
     const player = players.get(socket.id);

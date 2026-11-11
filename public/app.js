@@ -199,6 +199,10 @@
   const teleportRipples = [];
   const teleportParticles = [];
 
+  // 실시간 떠오르는 말풍선(Speech Bubbles) & 퀵 리액션 파티클 시스템
+  const speechBubbles = new Map();
+  const reactionParticles = [];
+
   // 이펙트 파티클 리스트 (컨페티, 하이파이브 스파크)
   const particles = [];
 
@@ -686,8 +690,20 @@
 
     socket.on('chatBroadcast', (msg) => {
       appendChatMessage(msg);
+      addSpeechBubble(msg.senderId, msg.text);
       if (chatDrawer.classList.contains('closed')) {
         chatBadge.classList.remove('hidden');
+      }
+    });
+
+    // [퀵 리액션 이모티콘 브로드캐스트 수신]
+    socket.on('reactionBroadcast', (data) => {
+      const p = (data.playerId === myId) ? myPlayer : otherPlayers.get(data.playerId);
+      const x = p ? p.x : data.x;
+      const y = p ? p.y : data.y;
+      spawnReactionParticle(x, y, data.emoji);
+      if (data.playerId !== myId) {
+        playAudio(audioPop, 0.5);
       }
     });
 
@@ -1217,6 +1233,30 @@
       sendChatMessage(text);
       chatInput.value = '';
     }
+  });
+
+  // --- [태블릿 우측 엄지 퀵 리액션 버튼 (👍, 🤔, ❌) 이벤트 바인딩] ---
+  const quickReactionButtons = document.querySelectorAll('.btn-reaction-float');
+  quickReactionButtons.forEach(btn => {
+    let lastTap = 0;
+    const triggerQuickReaction = (e) => {
+      e.preventDefault();
+      const now = Date.now();
+      if (now - lastTap < 300) return; // 300ms 탭 디바운스
+      lastTap = now;
+
+      const emoji = btn.getAttribute('data-emoji') || '👍';
+      if (socket) {
+        socket.emit('quickReaction', { emoji });
+      }
+      if (myPlayer) {
+        spawnReactionParticle(myPlayer.x, myPlayer.y, emoji);
+      }
+      playAudio(audioPop, 0.7);
+    };
+
+    btn.addEventListener('click', triggerQuickReaction);
+    btn.addEventListener('touchstart', triggerQuickReaction, { passive: false });
   });
 
   function sendChatMessage(text) {
@@ -1770,6 +1810,139 @@
     });
   }
 
+  // --- [14-1. 실시간 떠오르는 말풍선 (Speech Bubbles) 시스템] ---
+  function addSpeechBubble(playerId, text) {
+    if (!text || !text.trim()) return;
+    speechBubbles.set(playerId, {
+      playerId,
+      text: text.trim(),
+      createdAt: performance.now(),
+      duration: 3800, // 3.8초 동안 유지
+      offsetY: 0,
+      alpha: 1.0
+    });
+  }
+
+  function drawSpeechBubbles() {
+    if (speechBubbles.size === 0) return;
+
+    for (const [id, bubble] of speechBubbles.entries()) {
+      const p = (id === myId) ? myPlayer : otherPlayers.get(id);
+      if (!p) continue;
+
+      const x = Math.round(p.x);
+      const y = Math.round(p.y);
+      const bob = p.isMoving ? Math.sin(p.walkCycle) * 3 : 0;
+      const isTeacher = !!(p.isAdmin || p.characterIndex === 99);
+      const baseBadgeY = isTeacher ? (y - 90 + bob * 2) : (y - 48 + bob);
+      const bY = baseBadgeY - 32 + bubble.offsetY;
+
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, Math.min(1, bubble.alpha));
+
+      ctx.font = 'bold 12px sans-serif';
+      const rawText = bubble.text;
+
+      // 텍스트 줄바꿈 또는 말줄임 처리 (최대 14자 2줄)
+      let lines = [];
+      if (rawText.length <= 14) {
+        lines = [rawText];
+      } else if (rawText.length <= 28) {
+        lines = [rawText.slice(0, 14), rawText.slice(14)];
+      } else {
+        lines = [rawText.slice(0, 14), rawText.slice(14, 27) + '...'];
+      }
+
+      let maxLineW = 0;
+      lines.forEach(line => {
+        const w = ctx.measureText(line).width;
+        if (w > maxLineW) maxLineW = w;
+      });
+
+      const padX = 14;
+      const padY = 8;
+      const lineH = 16;
+      const bubbleW = Math.max(50, Math.min(240, maxLineW + padX * 2));
+      const bubbleH = lines.length * lineH + padY * 2;
+      const bX = Math.round(x - bubbleW / 2);
+
+      // 말풍선 카드 (은은한 그림자 + 흰색 라운드 사각형)
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.25)';
+      ctx.shadowBlur = 6;
+      ctx.shadowOffsetY = 3;
+
+      ctx.fillStyle = '#ffffff';
+      drawRoundRect(ctx, bX, bY - bubbleH, bubbleW, bubbleH, 12);
+      ctx.fill();
+
+      // 그림자 해제 후 테두리 스트로크
+      ctx.shadowColor = 'transparent';
+      ctx.strokeStyle = isTeacher ? '#f59e0b' : '#3b82f6';
+      ctx.lineWidth = isTeacher ? 2 : 1.5;
+      ctx.stroke();
+
+      // 말풍선 하단 꼬리표 삼각형 (아바타 머리 방향)
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.moveTo(x - 5, bY);
+      ctx.lineTo(x + 5, bY);
+      ctx.lineTo(x, bY + 6);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = isTeacher ? '#f59e0b' : '#3b82f6';
+      ctx.stroke();
+
+      // 텍스트 출력
+      ctx.fillStyle = '#0f172a';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      lines.forEach((line, idx) => {
+        const textY = bY - bubbleH + padY + idx * lineH + lineH / 2;
+        ctx.fillText(line, x, textY);
+      });
+
+      ctx.restore();
+    }
+  }
+
+  // --- [14-2. 퀵 리액션 이모티콘 파티클 (Sin곡선 흔들림) 시스템] ---
+  function spawnReactionParticle(x, y, emoji) {
+    for (let i = 0; i < 2; i++) {
+      reactionParticles.push({
+        baseX: x + (Math.random() - 0.5) * 16,
+        y: y - 35 + (Math.random() - 0.5) * 10,
+        emoji: emoji,
+        life: 2.0,
+        maxLife: 2.0,
+        vy: -60 - Math.random() * 35, // 퐁퐁 위로 솟구침
+        swayFreq: 3.5 + Math.random() * 2, // 좌우 흔들림 주파수
+        swayAmp: 12 + Math.random() * 8, // 좌우 흔들림 진폭
+        swaySeed: Math.random() * Math.PI * 2,
+        scale: 0.6,
+        alpha: 1.0,
+        delay: i * 0.12
+      });
+    }
+  }
+
+  function drawReactionParticles() {
+    if (reactionParticles.length === 0) return;
+    reactionParticles.forEach(rp => {
+      if (rp.delay > 0) return;
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, rp.alpha);
+      ctx.translate(rp.x, rp.y);
+      ctx.scale(rp.scale, rp.scale);
+      ctx.font = '26px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.shadowColor = 'rgba(255, 255, 255, 0.85)';
+      ctx.shadowBlur = 8;
+      ctx.fillText(rp.emoji, 0, 0);
+      ctx.restore();
+    });
+  }
+
   // --- 14. 파티클 이펙트 시스템 ---
   function spawnBallotParticles(x, y, choice) {
     const color = choice === 'agree' ? '#10b981' : '#ef4444';
@@ -1964,6 +2137,60 @@
       }
     }
 
+    // 실시간 말풍선 수명 및 부드러운 상승 애니메이션 업데이트
+    const nowPerf = performance.now();
+    for (const [id, bubble] of speechBubbles.entries()) {
+      const elapsed = nowPerf - bubble.createdAt;
+      if (elapsed >= bubble.duration) {
+        speechBubbles.delete(id);
+        continue;
+      }
+      const progress = elapsed / bubble.duration;
+      // 3~4초 동안 서서히 위로 떠오름 (0 -> -32px)
+      bubble.offsetY = -32 * Math.sin(progress * Math.PI / 2);
+      // 마지막 1초 동안 부드럽게 Fade-out
+      if (progress > 0.72) {
+        bubble.alpha = 1 - (progress - 0.72) / 0.28;
+      } else {
+        bubble.alpha = 1.0;
+      }
+    }
+
+    // 퀵 리액션 이모티콘 파티클 애니메이션 업데이트 (Sin 곡선 좌우 스웨이)
+    for (let i = reactionParticles.length - 1; i >= 0; i--) {
+      const rp = reactionParticles[i];
+      if (rp.delay > 0) {
+        rp.delay -= dt;
+        continue;
+      }
+      rp.life -= dt;
+      if (rp.life <= 0) {
+        reactionParticles.splice(i, 1);
+        continue;
+      }
+      const progress = 1 - (rp.life / rp.maxLife);
+      rp.y += rp.vy * dt;
+      rp.vy *= 0.95; // 서서히 감속
+      // x축 좌우 Sin 곡선 부드러운 흔들림 (Sway)
+      rp.x = rp.baseX + Math.sin(progress * rp.swayFreq * Math.PI + rp.swaySeed) * rp.swayAmp;
+
+      // 퐁! 팝업 스케일 연출
+      if (progress < 0.2) {
+        rp.scale = 0.6 + (progress / 0.2) * 0.6; // 0.6 -> 1.2
+      } else if (progress < 0.35) {
+        rp.scale = 1.2 - ((progress - 0.2) / 0.15) * 0.2; // 1.2 -> 1.0
+      } else {
+        rp.scale = 1.0;
+      }
+
+      // 마지막 0.7초간 페이드아웃
+      if (rp.life < 0.7) {
+        rp.alpha = rp.life / 0.7;
+      } else {
+        rp.alpha = 1.0;
+      }
+    }
+
     // 카메라 부드러운 추종
     camera.targetX = myPlayer.x;
     camera.targetY = myPlayer.y;
@@ -2003,8 +2230,10 @@
 
     renderList.forEach(p => drawCharacter(p, p.id === myId));
 
-    // 7. 파티클 및 텔레포트 빛무리/파동 이펙트
+    // 7. 파티클 및 텔레포트 빛무리/파동 이펙트 & 퀵 리액션 & 말풍선
     drawTeleportEffects();
+    drawReactionParticles();
+    drawSpeechBubbles();
     drawParticles();
 
     ctx.restore();
