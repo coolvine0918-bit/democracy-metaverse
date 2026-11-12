@@ -6,15 +6,23 @@ const path = require('path');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: '*' }
+  cors: { origin: '*' },
+  pingInterval: 20000,
+  pingTimeout: 20000
 });
 
 const PORT = process.env.PORT || 3000;
 
-// 정적 파일 서빙: public 및 assets 폴더
-app.use(express.static(path.join(__dirname, 'public')));
-app.use('/assets', express.static(path.join(__dirname, 'assets')));
-app.use('/assets', express.static(path.join(__dirname, 'public/assets')));
+// Render 슬립 방지용 헬스체크 엔드포인트 (UptimeRobot 또는 크론용)
+app.get('/healthz', (req, res) => {
+  res.status(200).send('OK');
+});
+
+// 정적 파일 서빙 (브라우저 캐싱 적용으로 30명 태블릿 동시 로딩 시 대역폭 대폭 절감)
+const staticOptions = { maxAge: '1h' };
+app.use(express.static(path.join(__dirname, 'public'), staticOptions));
+app.use('/assets', express.static(path.join(__dirname, 'assets'), staticOptions));
+app.use('/assets', express.static(path.join(__dirname, 'public/assets'), staticOptions));
 
 // 맵 & 소회의실(카페 7개) 및 광장 오브젝트 구조 정의 (전체 맵 크기: 2400 x 1800)
 const MAP_CONFIG = {
@@ -462,6 +470,12 @@ io.on('connection', (socket) => {
         socket.emit('cafeExited');
         io.emit('cafeStatusUpdated', computeCafeStatus());
       }
+    }
+
+    // [서버 부하 방지 최적화]: 위치와 방향이 이전과 동일하면 불필요한 전체 브로드캐스트 스킵
+    const hasMoved = player.x !== clampedX || player.y !== clampedY || (facing && player.facing !== facing);
+    if (!hasMoved) {
+      return;
     }
 
     player.x = clampedX;
