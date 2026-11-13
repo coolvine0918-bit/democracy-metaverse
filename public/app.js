@@ -84,6 +84,17 @@
   const quizOptionsList = document.getElementById('quizOptionsList');
   const quizFeedbackBox = document.getElementById('quizFeedbackBox');
 
+  // 카페 웰컴 1초 미니 퀴즈 모달
+  const cafeQuizModal = document.getElementById('cafeQuizModal');
+  const btnCloseCafeQuiz = document.getElementById('btnCloseCafeQuiz');
+  const cafeQuizTitle = document.getElementById('cafeQuizTitle');
+  const cafeQuizGreeting = document.getElementById('cafeQuizGreeting');
+  const cafeQuizQuestion = document.getElementById('cafeQuizQuestion');
+  const cafeQuizOptions = document.getElementById('cafeQuizOptions');
+  const cafeQuizFeedback = document.getElementById('cafeQuizFeedback');
+  const solvedCafeQuizzes = new Set();
+  let isCafeQuizSubmitting = false;
+
   // 투표함 근접 퀵 버튼
   const ballotBoxActionZone = document.getElementById('ballotBoxActionZone');
   const btnBallotQuickVoteAgree = document.getElementById('btnBallotQuickVoteAgree');
@@ -395,6 +406,13 @@
           camera.targetY = p.y;
           updateQuestUI(myPlayer.quest);
           renderInventoryUI(myPlayer.inventory);
+          if (myPlayer.inventory) {
+            myPlayer.inventory.forEach(item => {
+              if (item.type === 'coffee' && item.cafeId) {
+                solvedCafeQuizzes.add(item.cafeId);
+              }
+            });
+          }
         } else {
           otherPlayers.set(p.id, {
             ...p,
@@ -510,6 +528,16 @@
       chatTitle.textContent = `☕ [${data.cafeName}] 소회의실 채팅`;
       chatSubtitle.textContent = `이 카페의 4명 친구들과 소곤소곤 토론합니다.`;
       showToast(`'${data.cafeName}'에 입장했습니다. (소회의실 토론으로 전환)`, '☕');
+
+      // ☕ 학생이 카페 입장 시 웰컴 1초 퀴즈 팝업
+      if (myPlayer && !myPlayer.isAdmin && !solvedCafeQuizzes.has(data.cafeId)) {
+        const alreadyHasCoffee = (myPlayer.inventory || []).some(item => item.type === 'coffee' && item.cafeId === data.cafeId);
+        if (!alreadyHasCoffee) {
+          setTimeout(() => {
+            openCafeWelcomeQuiz(data.cafeId, data.cafeName);
+          }, 400);
+        }
+      }
     });
 
     socket.on('cafeExited', () => {
@@ -624,6 +652,44 @@
     socket.on('votingPaperCountUpdated', (data) => {
       if (myPlayer) {
         myPlayer.votingPaperCount = data.votingPaperCount;
+        myPlayer.inventory = data.inventory;
+        renderInventoryUI(myPlayer.inventory);
+      }
+    });
+
+    // ☕ 카페 웰컴 퀴즈 커피 지급 알림
+    socket.on('coffeeClaimed', (data) => {
+      if (myPlayer) {
+        myPlayer.inventory = data.inventory;
+        renderInventoryUI(myPlayer.inventory);
+      }
+      playAudio(audioSuccess, 1.0);
+      showToast(`가방(🎒)에 '${data.coffeeName}'가 쏙 들어왔습니다!`, '☕');
+    });
+
+    // ☕ 커피 마시기 연출 (하트, 커피, 스파클, 수증기 파티클 퐁퐁 & 말풍선)
+    socket.on('coffeeDrank', (data) => {
+      playAudio(audioPop, 0.9);
+      const emojis = ['☕', '💖', '✨', '💨', '☕', '💖'];
+      emojis.forEach((emoji, idx) => {
+        setTimeout(() => {
+          const targetPlayer = (myPlayer && data.playerId === myPlayer.id) ? myPlayer : otherPlayers.get(data.playerId);
+          const px = targetPlayer ? targetPlayer.x : data.x;
+          const py = targetPlayer ? targetPlayer.y : data.y;
+          spawnReactionParticle(px, py, emoji);
+        }, idx * 110);
+      });
+
+      addSpeechBubble(data.playerId, '☕ 호로록~ 달콤하고 따뜻해! 토론 힘내자!');
+
+      if (myPlayer && data.playerId === myPlayer.id) {
+        showToast(`☕ 따뜻한 커피를 마셨습니다! (${data.coffeeName}) 힘이 솟아납니다!`, '☕');
+      }
+    });
+
+    // ☕ 커피 마시기 성공 인벤토리 갱신
+    socket.on('coffeeDrankSuccess', (data) => {
+      if (myPlayer) {
         myPlayer.inventory = data.inventory;
         renderInventoryUI(myPlayer.inventory);
       }
@@ -893,12 +959,15 @@
       slot.setAttribute('data-id', item.id);
 
       const countBadge = (item.count !== undefined) ? `<span class="slot-badge-count">x${item.count}</span>` : '';
-      const isDepleted = item.type === 'ballot' && item.count === 0;
-      const useButton = item.type === 'ballot'
-        ? (isDepleted
-            ? `<button class="btn-slot-use" disabled style="opacity:0.5; cursor:not-allowed; background:#475569;">소진됨</button>`
-            : `<button class="btn-slot-use" data-vote="${item.voteChoice}">투표함 투입</button>`)
-        : '';
+      const isDepleted = (item.type === 'ballot' || item.type === 'coffee') && item.count === 0;
+      let useButton = '';
+      if (item.type === 'ballot') {
+        useButton = isDepleted
+          ? `<button class="btn-slot-use" disabled style="opacity:0.5; cursor:not-allowed; background:#475569;">소진됨</button>`
+          : `<button class="btn-slot-use" data-vote="${item.voteChoice}">투표함 투입</button>`;
+      } else if (item.type === 'coffee') {
+        useButton = `<button class="btn-slot-use btn-drink-coffee" data-item-id="${item.id}">한 모금 마시기 ☕</button>`;
+      }
 
       slot.innerHTML = `
         ${countBadge}
@@ -908,13 +977,18 @@
         ${useButton}
       `;
 
-      // 투표용지일 경우 터치/클릭으로 1-터치 투입도 지원 (소진되지 않았을 때만)
+      // 투표용지 또는 커피 터치/클릭
       const btnUse = slot.querySelector('.btn-slot-use:not([disabled])');
       if (btnUse) {
         btnUse.addEventListener('click', (e) => {
           e.stopPropagation();
-          submitBallot(item.voteChoice);
-          inventoryModal.classList.add('hidden');
+          if (item.type === 'ballot') {
+            submitBallot(item.voteChoice);
+            inventoryModal.classList.add('hidden');
+          } else if (item.type === 'coffee') {
+            drinkCoffee(item.id);
+            inventoryModal.classList.add('hidden');
+          }
         });
       }
 
@@ -1235,6 +1309,164 @@
     }
 
     openQuizModal();
+  }
+
+  // --- 8-2. ☕ 카페 웰컴 1초 퀴즈 & 라떼 보상 시스템 ---
+  function drinkCoffee(itemId) {
+    if (!socket || !myPlayer) return;
+    socket.emit('drinkCoffee', { itemId });
+  }
+
+  const CAFE_QUIZZES = {
+    1: {
+      name: '민주 카페',
+      coffeeName: '따뜻한 민주 라떼 ☕',
+      greeting: '☕ 민주 카페에 오신 것을 환영합니다!',
+      question: '‘민주주의(Democracy)’의 반대말(반의어)로 가장 알맞은 것은?',
+      options: ['① 독재 정치', '② 공화 정치'],
+      answerIndex: 0,
+      explanation: '민주주의는 국민이 권력을 갖는 제도로, 1인/소수가 권력을 독점하는 독재와 반대됩니다!'
+    },
+    2: {
+      name: '참여 카페',
+      coffeeName: '달콤한 참여 마키아토 ☕',
+      greeting: '☕ 참여 카페에 오신 것을 환영합니다!',
+      question: '시민들이 국가나 지역사회의 의사결정에 직접 나서는 행동은?',
+      options: ['① 적극적인 시민 참여', '② 정치적 무관심과 방관'],
+      answerIndex: 0,
+      explanation: '시민 참여는 민주 사회를 올바르게 발전시키는 핵심 원동력입니다!'
+    },
+    3: {
+      name: '공화 카페',
+      coffeeName: '향긋한 공화 아메리카노 ☕',
+      greeting: '☕ 공화 카페에 오신 것을 환영합니다!',
+      question: '국가의 주권이 국민에게 있고 공공의 이익을 추구하는 정치 체제는?',
+      options: ['① 세습 군주제', '② 민주 공화제'],
+      answerIndex: 1,
+      explanation: '대한민국 헌법 제1조 1항: "대한민국은 민주공화국이다"!'
+    },
+    4: {
+      name: '토론 카페',
+      coffeeName: '부드러운 토론 카푸치노 ☕',
+      greeting: '☕ 토론 카페에 오신 것을 환영합니다!',
+      question: '서로 다른 의견을 조율하고 합리적 대안을 찾는 민주적 과정은?',
+      options: ['① 일방적 강요와 폭력', '② 경청과 토론'],
+      answerIndex: 1,
+      explanation: '민주주의는 다양한 의견을 존중하며 대화와 토론으로 타협을 이룹니다!'
+    },
+    5: {
+      name: '평등 카페',
+      coffeeName: '포근한 평등 바닐라라떼 ☕',
+      greeting: '☕ 평등 카페에 오신 것을 환영합니다!',
+      question: '모든 시민이 차별 없이 법 앞에 동등한 권리를 갖는 기본 원리는?',
+      options: ['① 법 앞의 평등', '② 신분 차별제'],
+      answerIndex: 0,
+      explanation: '모든 시민은 법 앞에 평등하며 합리적 이유 없는 차별을 받지 않습니다!'
+    },
+    6: {
+      name: '정의 카페',
+      coffeeName: '깔끔한 정의 콜드브루 ☕',
+      greeting: '☕ 정의 카페에 오신 것을 환영합니다!',
+      question: '사회 구성원에게 정당한 몫을 공정하게 분배하고 원칙을 지키는 것은?',
+      options: ['① 사회적 정의', '② 부당한 특권'],
+      answerIndex: 0,
+      explanation: '정의로운 사회는 모든 이에게 공정한 기회와 정당한 몫을 보장합니다!'
+    },
+    7: {
+      name: '자유 카페',
+      coffeeName: '상큼한 자유 모카치노 ☕',
+      greeting: '☕ 자유 카페에 오신 것을 환영합니다!',
+      question: '타인의 권리를 침해하지 않는 범위 내에서 자신의 뜻대로 행동할 권리는?',
+      options: ['① 무책임한 방종', '② 자유와 책임'],
+      answerIndex: 1,
+      explanation: '진정한 자유는 타인의 권리를 존중하는 책임과 언제나 함께합니다!'
+    }
+  };
+
+  if (btnCloseCafeQuiz) {
+    btnCloseCafeQuiz.addEventListener('click', closeCafeWelcomeQuiz);
+  }
+
+  function openCafeWelcomeQuiz(cafeId, cafeName) {
+    if (!cafeQuizModal) return;
+    const qData = CAFE_QUIZZES[cafeId] || {
+      name: cafeName || '카페',
+      coffeeName: '따뜻한 민주 라떼 ☕',
+      greeting: `☕ ${cafeName || '카페'}에 오신 것을 환영합니다!`,
+      question: '민주 시민의 가장 올바른 대화 태도는?',
+      options: ['① 상대방 의견 경청과 상호 존중', '② 내 주장만 무조건 고집'],
+      answerIndex: 0,
+      explanation: '상대방의 의견을 귀 기울여 듣고 존중하는 태도가 건강한 토론의 시작입니다!'
+    };
+
+    isCafeQuizSubmitting = false;
+    if (cafeQuizTitle) cafeQuizTitle.textContent = `${qData.name} 웰컴 1초 퀴즈`;
+    if (cafeQuizGreeting) cafeQuizGreeting.textContent = qData.greeting;
+    if (cafeQuizQuestion) cafeQuizQuestion.textContent = qData.question;
+    if (cafeQuizFeedback) {
+      cafeQuizFeedback.className = 'quiz-feedback-box hidden';
+      cafeQuizFeedback.textContent = '';
+    }
+
+    if (cafeQuizOptions) {
+      cafeQuizOptions.innerHTML = '';
+      qData.options.forEach((optText, idx) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn-cafe-option';
+        btn.innerHTML = `<span class="opt-text">${optText}</span>`;
+        btn.addEventListener('click', () => handleCafeQuizAnswer(cafeId, qData, idx, btn));
+        cafeQuizOptions.appendChild(btn);
+      });
+    }
+
+    cafeQuizModal.classList.remove('hidden');
+    playAudio(audioPop, 0.7);
+  }
+
+  function closeCafeWelcomeQuiz() {
+    if (cafeQuizModal) cafeQuizModal.classList.add('hidden');
+    isCafeQuizSubmitting = false;
+  }
+
+  function handleCafeQuizAnswer(cafeId, qData, chosenIdx, btnElement) {
+    if (isCafeQuizSubmitting) return;
+    const isCorrect = chosenIdx === qData.answerIndex;
+
+    if (isCorrect) {
+      isCafeQuizSubmitting = true;
+      btnElement.classList.add('correct');
+      if (cafeQuizFeedback) {
+        cafeQuizFeedback.className = 'quiz-feedback-box correct';
+        cafeQuizFeedback.textContent = `🎉 정답입니다! 👏 ${qData.explanation}`;
+        cafeQuizFeedback.classList.remove('hidden');
+      }
+      playAudio(audioSuccess, 0.9);
+
+      // 보상 지급 서버 요청
+      solvedCafeQuizzes.add(cafeId);
+      if (socket) {
+        socket.emit('claimCafeCoffee', { cafeId: cafeId, coffeeName: qData.coffeeName });
+      }
+
+      setTimeout(() => {
+        closeCafeWelcomeQuiz();
+      }, 1200);
+    } else {
+      isCafeQuizSubmitting = true;
+      btnElement.classList.add('wrong');
+      if (cafeQuizFeedback) {
+        cafeQuizFeedback.className = 'quiz-feedback-box wrong';
+        cafeQuizFeedback.textContent = '다시 한번 생각해 보세요! ❌ (다른 보기를 선택해 보세요)';
+        cafeQuizFeedback.classList.remove('hidden');
+      }
+      playAudio(audioPop, 0.6);
+
+      setTimeout(() => {
+        btnElement.classList.remove('wrong');
+        isCafeQuizSubmitting = false;
+      }, 850);
+    }
   }
 
   // --- 9. 👥 MMO 학생 아바타 터치 상호작용 (하이파이브, 귓속말) ---
@@ -2723,7 +2955,23 @@
     { type: 'bench', x: 990, y: 730, angle: -0.7 },
     { type: 'bench', x: 1410, y: 730, angle: 0.7 },
     { type: 'bench', x: 990, y: 1110, angle: -2.4 },
-    { type: 'bench', x: 1410, y: 1110, angle: 2.4 }
+    { type: 'bench', x: 1410, y: 1110, angle: 2.4 },
+
+    // 5. 중앙 아고라 원형 광장 외곽 정원 링 (Plaza Outer Green Belt)
+    { type: 'pine', x: 1070, y: 700, size: 48 },
+    { type: 'flowers', x: 1110, y: 720, color: '#f43f5e' },
+    { type: 'oak',  x: 1330, y: 700, size: 48 },
+    { type: 'flowers', x: 1290, y: 720, color: '#38bdf8' },
+    { type: 'pine', x: 1490, y: 880, size: 46 },
+    { type: 'flowers', x: 1470, y: 920, color: '#fef08a' },
+    { type: 'oak',  x: 1450, y: 1100, size: 48 },
+    { type: 'flowers', x: 1420, y: 1070, color: '#ec4899' },
+    { type: 'pine', x: 1200, y: 1240, size: 50 },
+    { type: 'flowers', x: 1240, y: 1220, color: '#10b981' },
+    { type: 'oak',  x: 950, y: 1100, size: 48 },
+    { type: 'flowers', x: 980, y: 1070, color: '#f59e0b' },
+    { type: 'pine', x: 910, y: 880, size: 46 },
+    { type: 'flowers', x: 930, y: 920, color: '#a855f7' }
   ];
 
   function drawTerrain() {

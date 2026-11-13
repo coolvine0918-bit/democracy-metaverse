@@ -696,6 +696,76 @@ io.on('connection', (socket) => {
     io.emit('studentListUpdated', getConnectedStudentsList());
   });
 
+  // 3-3. 카페 웰컴 1초 퀴즈 정답 시 커피(☕) 보상 지급
+  socket.on('claimCafeCoffee', (data) => {
+    const player = players.get(socket.id);
+    if (!player) return;
+
+    const cafeId = data && data.cafeId ? data.cafeId : 1;
+    const coffeeName = (data && data.coffeeName) ? data.coffeeName : '따뜻한 민주 라떼 ☕';
+    const coffeeId = `coffee_cafe_${cafeId}`;
+
+    const existing = player.inventory.find(i => i.id === coffeeId || (i.type === 'coffee' && i.cafeId === cafeId));
+    if (!existing) {
+      player.inventory.push({
+        id: coffeeId,
+        name: coffeeName,
+        icon: '☕',
+        type: 'coffee',
+        cafeId: cafeId,
+        desc: '카페 웰컴 퀴즈로 받은 향긋한 라떼! 마시면 기운이 나고 [미션 3 소회의실 토론]에 +1회 가산점을 얻습니다.'
+      });
+    }
+
+    socket.emit('coffeeClaimed', {
+      inventory: player.inventory,
+      coffeeName: coffeeName
+    });
+  });
+
+  // 3-4. 인벤토리 커피 마시기 (☕ 호로록 이펙트 & 토론 미션 +1 가산점)
+  socket.on('drinkCoffee', (data) => {
+    const player = players.get(socket.id);
+    if (!player) return;
+
+    const itemId = data && data.itemId;
+    const coffeeIndex = player.inventory.findIndex(i => i.id === itemId || i.type === 'coffee');
+    if (coffeeIndex === -1) {
+      socket.emit('systemNotification', { message: '마실 수 있는 커피가 없습니다!', type: 'warn' });
+      return;
+    }
+
+    const coffeeItem = player.inventory[coffeeIndex];
+    player.inventory.splice(coffeeIndex, 1); // 1개 소모
+
+    let m3Bonus = false;
+    if (player.quest.m3 < 2) {
+      player.quest.m3++;
+      m3Bonus = true;
+      socket.emit('questUpdated', {
+        quest: player.quest,
+        message: `☕ 커피의 힘! [미션 3 소회의실 토론] 보너스 가산점 +1회 달성 (${player.quest.m3}/2회)!`
+      });
+      checkBadgeAward(player, socket);
+      io.emit('questProgressUpdated', getQuestProgressSummary());
+    }
+
+    // 커피 마시기 시각/음향 연출 전체 브로드캐스트
+    io.emit('coffeeDrank', {
+      playerId: player.id,
+      nickname: player.nickname,
+      x: player.x,
+      y: player.y,
+      coffeeName: coffeeItem.name,
+      m3Bonus: m3Bonus
+    });
+
+    socket.emit('coffeeDrankSuccess', {
+      inventory: player.inventory,
+      m3Bonus: m3Bonus
+    });
+  });
+
   // 4. 인벤토리 투표용지 -> 투표함 투입 로직
   socket.on('submitBallotToBox', (data) => {
     const player = players.get(socket.id);

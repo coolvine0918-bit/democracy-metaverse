@@ -403,6 +403,37 @@
     </div>
   </div>
 
+  <!-- ================= 4-1. ☕ 카페 웰컴 1초 미니 퀴즈 모달 ================= -->
+  <div id="cafeQuizModal" class="modal-overlay hidden">
+    <div class="custom-dialog-card cafe-quiz-card">
+      <div class="dialog-header">
+        <div class="quiz-header-title">
+          <span class="cafe-quiz-header-icon">☕</span>
+          <div>
+            <h3 id="cafeQuizTitle">민주 카페 웰컴 1초 퀴즈</h3>
+            <small>맞히면 가방(🎒)에 '따뜻한 라떼 ☕'를 드려요!</small>
+          </div>
+        </div>
+        <button id="btnCloseCafeQuiz" class="btn-close-drawer">✕</button>
+      </div>
+
+      <div class="cafe-quiz-body">
+        <div class="cafe-quiz-greeting" id="cafeQuizGreeting">
+          ☕ 카페에 오신 것을 환영합니다!
+        </div>
+        <div class="cafe-quiz-question" id="cafeQuizQuestion">
+          "민주주의"의 반의어(반대말)로 가장 알맞은 것은?
+        </div>
+
+        <div class="cafe-quiz-options" id="cafeQuizOptions">
+          <!-- 2개 대형 터치 버튼 -->
+        </div>
+
+        <div id="cafeQuizFeedback" class="quiz-feedback-box hidden"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- ================= 5. 👥 학생 아바타 터치 시 MMO 상호작용 팝업 ================= -->
   <div id="playerInteractMenu" class="interact-menu hidden">
     <div class="interact-header">
