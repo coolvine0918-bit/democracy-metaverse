@@ -2579,6 +2579,9 @@
     // 1. 잔디 & 길
     drawTerrain();
 
+    // 1-1. 스위스 알프스 자연 경관 (소나무/활엽수 숲, 가로등, 화단, 벤치)
+    drawMapDecorations();
+
     // 2. 중앙 광장 & 분수대
     drawCentralPlaza();
 
@@ -2610,30 +2613,150 @@
     ctx.restore();
   }
 
+  // ================= 🌲 스위스 알프스 자연 경관 및 마을 장식 데이터 =================
+  const SWISS_DECORATIONS = [
+    // 1. 외곽 알프스 숲 (Perimeter Alpine Pine & Oak Forest)
+    // 상단 숲
+    { type: 'pine', x: 200, y: 120, size: 52 },
+    { type: 'pine', x: 340, y: 100, size: 48 },
+    { type: 'oak',  x: 480, y: 130, size: 50 },
+    { type: 'pine', x: 740, y: 110, size: 54 },
+    { type: 'oak',  x: 880, y: 130, size: 48 },
+    { type: 'pine', x: 1020, y: 100, size: 52 },
+    { type: 'pine', x: 1380, y: 100, size: 54 },
+    { type: 'oak',  x: 1520, y: 130, size: 48 },
+    { type: 'pine', x: 1660, y: 110, size: 52 },
+    { type: 'oak',  x: 1940, y: 120, size: 50 },
+    { type: 'pine', x: 2080, y: 100, size: 54 },
+    { type: 'pine', x: 2220, y: 120, size: 50 },
+
+    // 하단 숲
+    { type: 'pine', x: 180, y: 1680, size: 54 },
+    { type: 'oak',  x: 320, y: 1690, size: 50 },
+    { type: 'pine', x: 460, y: 1680, size: 52 },
+    { type: 'pine', x: 600, y: 1700, size: 48 },
+    { type: 'oak',  x: 950, y: 1690, size: 52 },
+    { type: 'pine', x: 1100, y: 1700, size: 54 },
+    { type: 'pine', x: 1200, y: 1690, size: 50 },
+    { type: 'oak',  x: 1300, y: 1700, size: 52 },
+    { type: 'pine', x: 1450, y: 1690, size: 54 },
+    { type: 'pine', x: 1780, y: 1700, size: 50 },
+    { type: 'oak',  x: 1920, y: 1680, size: 52 },
+    { type: 'pine', x: 2060, y: 1700, size: 54 },
+    { type: 'pine', x: 2200, y: 1680, size: 48 },
+
+    // 좌측 숲
+    { type: 'pine', x: 100, y: 260, size: 52 },
+    { type: 'oak',  x: 110, y: 400, size: 50 },
+    { type: 'pine', x: 90, y: 550, size: 54 },
+    { type: 'pine', x: 110, y: 700, size: 48 },
+    { type: 'oak',  x: 95, y: 880, size: 52 },
+    { type: 'pine', x: 110, y: 1220, size: 50 },
+    { type: 'oak',  x: 90, y: 1380, size: 52 },
+    { type: 'pine', x: 110, y: 1540, size: 54 },
+
+    // 우측 숲
+    { type: 'pine', x: 2290, y: 260, size: 52 },
+    { type: 'oak',  x: 2280, y: 400, size: 50 },
+    { type: 'pine', x: 2300, y: 550, size: 54 },
+    { type: 'pine', x: 2280, y: 700, size: 48 },
+    { type: 'oak',  x: 2295, y: 880, size: 52 },
+    { type: 'pine', x: 2280, y: 1220, size: 50 },
+    { type: 'oak',  x: 2300, y: 1380, size: 52 },
+    { type: 'pine', x: 2285, y: 1540, size: 54 },
+
+    // 2. 카페 사이 너른 초원 정원 (Inner Meadows between Cafe roads)
+    // 북서쪽 (자유 7 - 민주 1 사이)
+    { type: 'pine', x: 340, y: 740, size: 46 },
+    { type: 'oak',  x: 270, y: 840, size: 48 },
+    { type: 'flowers', x: 380, y: 800, color: '#fef08a' },
+    { type: 'pine', x: 400, y: 620, size: 44 },
+
+    // 북쪽 (민주 1 - 참여 2 사이)
+    { type: 'oak',  x: 880, y: 380, size: 48 },
+    { type: 'pine', x: 970, y: 280, size: 44 },
+    { type: 'flowers', x: 820, y: 320, color: '#f43f5e' },
+    { type: 'pine', x: 800, y: 640, size: 46 },
+    { type: 'oak',  x: 940, y: 680, size: 44 },
+    { type: 'flowers', x: 870, y: 720, color: '#38bdf8' },
+
+    // 북동쪽 (참여 2 - 공화 3 사이)
+    { type: 'oak',  x: 1460, y: 360, size: 48 },
+    { type: 'pine', x: 1550, y: 270, size: 44 },
+    { type: 'flowers', x: 1420, y: 300, color: '#fef08a' },
+    { type: 'pine', x: 1560, y: 640, size: 46 },
+    { type: 'oak',  x: 1440, y: 690, size: 44 },
+    { type: 'flowers', x: 1500, y: 730, color: '#f43f5e' },
+
+    // 동쪽 (공화 3 - 토론 4 사이)
+    { type: 'pine', x: 2040, y: 700, size: 46 },
+    { type: 'oak',  x: 2120, y: 820, size: 48 },
+    { type: 'flowers', x: 2020, y: 860, color: '#a855f7' },
+
+    // 남동쪽 (토론 4 - 평등 5 사이)
+    { type: 'pine', x: 1980, y: 1320, size: 46 },
+    { type: 'oak',  x: 2080, y: 1220, size: 48 },
+    { type: 'flowers', x: 1920, y: 1260, color: '#fef08a' },
+
+    // 남쪽 (평등 5 - 정의 6 사이)
+    { type: 'oak',  x: 1100, y: 1480, size: 48 },
+    { type: 'pine', x: 1200, y: 1560, size: 52 },
+    { type: 'pine', x: 1300, y: 1480, size: 46 },
+    { type: 'flowers', x: 1190, y: 1440, color: '#38bdf8' },
+    { type: 'flowers', x: 1210, y: 1640, color: '#f43f5e' },
+
+    // 남서쪽 (정의 6 - 자유 7 사이)
+    { type: 'pine', x: 420, y: 1280, size: 46 },
+    { type: 'oak',  x: 520, y: 1360, size: 48 },
+    { type: 'flowers', x: 480, y: 1240, color: '#fef08a' },
+
+    // 3. 광장 주변 유럽식 가로등 (Vintage Street Lanterns along radial paths)
+    { type: 'lamp', x: 880, y: 680 },
+    { type: 'lamp', x: 1200, y: 600 },
+    { type: 'lamp', x: 1520, y: 680 },
+    { type: 'lamp', x: 1580, y: 980 },
+    { type: 'lamp', x: 1420, y: 1240 },
+    { type: 'lamp', x: 980, y: 1240 },
+    { type: 'lamp', x: 820, y: 980 },
+
+    // 4. 광장 테두리 벤치 (Park Benches)
+    { type: 'bench', x: 990, y: 730, angle: -0.7 },
+    { type: 'bench', x: 1410, y: 730, angle: 0.7 },
+    { type: 'bench', x: 990, y: 1110, angle: -2.4 },
+    { type: 'bench', x: 1410, y: 1110, angle: 2.4 }
+  ];
+
   function drawTerrain() {
-    ctx.fillStyle = '#476e46';
+    // 1. 스위스 알프스 잔디밭 (Alpine Meadow Base)
+    ctx.fillStyle = '#2d6d3e';
     ctx.fillRect(0, 0, mapConfig.width, mapConfig.height);
 
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.04)';
-    ctx.lineWidth = 1;
-    const tileSize = 48;
-    for (let x = 0; x < mapConfig.width; x += tileSize) {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, mapConfig.height);
-      ctx.stroke();
-    }
-    for (let y = 0; y < mapConfig.height; y += tileSize) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(mapConfig.width, y);
-      ctx.stroke();
+    // 잔디 체커보드 결 텍스처 (풍성하고 싱그러운 잔디밭 형성)
+    ctx.fillStyle = '#337a46';
+    const patchSize = 48;
+    for (let py = 0; py < mapConfig.height; py += patchSize) {
+      for (let px = 0; px < mapConfig.width; px += patchSize) {
+        if (((px / patchSize) + (py / patchSize)) % 2 === 0) {
+          ctx.fillRect(px, py, patchSize, patchSize);
+        }
+      }
     }
 
-    // 도로망
+    // 잔디 풀잎 점박이 하이라이트
+    ctx.fillStyle = 'rgba(86, 204, 115, 0.2)';
+    for (let gy = 24; gy < mapConfig.height; gy += 96) {
+      for (let gx = 24; gx < mapConfig.width; gx += 96) {
+        ctx.fillRect(gx, gy, 4, 3);
+        ctx.fillRect(gx + 6, gy - 2, 3, 5);
+      }
+    }
+
+    // 2. 유럽식 코블스톤 방사형 도로망 (Cobblestone Paths)
     const plaza = mapConfig.plaza;
-    ctx.strokeStyle = '#d6c7a1';
-    ctx.lineWidth = 44;
+
+    // 외곽 자갈/석조 연석 (Curbs)
+    ctx.strokeStyle = '#8c7b61';
+    ctx.lineWidth = 50;
     ctx.lineCap = 'round';
     mapConfig.cafes.forEach(c => {
       ctx.beginPath();
@@ -2642,8 +2765,19 @@
       ctx.stroke();
     });
 
-    ctx.strokeStyle = '#f3ebd4';
-    ctx.lineWidth = 32;
+    // 돌길 본체 (Warm European Cobblestone Paving)
+    ctx.strokeStyle = '#e5dac3';
+    ctx.lineWidth = 38;
+    mapConfig.cafes.forEach(c => {
+      ctx.beginPath();
+      ctx.moveTo(plaza.centerX, plaza.centerY);
+      ctx.lineTo(c.x, c.y);
+      ctx.stroke();
+    });
+
+    // 도로 중심 자갈 하이라이트 라인
+    ctx.strokeStyle = '#f5eedb';
+    ctx.lineWidth = 26;
     mapConfig.cafes.forEach(c => {
       ctx.beginPath();
       ctx.moveTo(plaza.centerX, plaza.centerY);
@@ -2652,14 +2786,222 @@
     });
   }
 
+  function drawMapDecorations() {
+    const camLeft = camera.x - screenWidth / 2 - 120;
+    const camRight = camera.x + screenWidth / 2 + 120;
+    const camTop = camera.y - screenHeight / 2 - 120;
+    const camBottom = camera.y + screenHeight / 2 + 120;
+
+    SWISS_DECORATIONS.forEach(dec => {
+      // 카메라 뷰포트 컬링: 화면 밖은 그리지 않음 (초고속 성능 보장)
+      if (dec.x < camLeft || dec.x > camRight || dec.y < camTop || dec.y > camBottom) {
+        return;
+      }
+
+      if (dec.type === 'pine') {
+        drawPineTree(ctx, dec.x, dec.y, dec.size || 50);
+      } else if (dec.type === 'oak') {
+        drawOakTree(ctx, dec.x, dec.y, dec.size || 50);
+      } else if (dec.type === 'lamp') {
+        drawStreetLamp(ctx, dec.x, dec.y);
+      } else if (dec.type === 'flowers') {
+        drawFlowerPatch(ctx, dec.x, dec.y, dec.color);
+      } else if (dec.type === 'bench') {
+        drawBench(ctx, dec.x, dec.y, dec.angle || 0);
+      }
+    });
+  }
+
+  function drawPineTree(ctx, x, y, size) {
+    ctx.save();
+    // 바닥 그림자
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.24)';
+    ctx.beginPath();
+    ctx.ellipse(x, y + size * 0.45, size * 0.45, size * 0.2, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 나무 기둥 (Trunk)
+    ctx.fillStyle = '#5c3818';
+    ctx.fillRect(x - 5, y + size * 0.1, 10, size * 0.38);
+
+    // 3단 피라미드 솔잎 (Tiered Foliage)
+    // 1단 (하단)
+    ctx.fillStyle = '#1e4d25';
+    ctx.beginPath();
+    ctx.moveTo(x, y - size * 0.1);
+    ctx.lineTo(x - size * 0.42, y + size * 0.28);
+    ctx.lineTo(x + size * 0.42, y + size * 0.28);
+    ctx.closePath();
+    ctx.fill();
+
+    // 2단 (중단)
+    ctx.fillStyle = '#276330';
+    ctx.beginPath();
+    ctx.moveTo(x, y - size * 0.35);
+    ctx.lineTo(x - size * 0.34, y);
+    ctx.lineTo(x + size * 0.34, y);
+    ctx.closePath();
+    ctx.fill();
+
+    // 3단 (상단)
+    ctx.fillStyle = '#34823f';
+    ctx.beginPath();
+    ctx.moveTo(x, y - size * 0.65);
+    ctx.lineTo(x - size * 0.24, y - size * 0.25);
+    ctx.lineTo(x + size * 0.24, y - size * 0.25);
+    ctx.closePath();
+    ctx.fill();
+
+    // 꼭대기 햇살 하이라이트
+    ctx.fillStyle = '#4ea85b';
+    ctx.beginPath();
+    ctx.moveTo(x, y - size * 0.65);
+    ctx.lineTo(x - size * 0.1, y - size * 0.45);
+    ctx.lineTo(x + size * 0.1, y - size * 0.45);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  function drawOakTree(ctx, x, y, size) {
+    ctx.save();
+    // 그림자
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.22)';
+    ctx.beginPath();
+    ctx.ellipse(x, y + size * 0.42, size * 0.52, size * 0.24, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 나무 기둥
+    ctx.fillStyle = '#4a2c11';
+    ctx.fillRect(x - 6, y + size * 0.05, 12, size * 0.4);
+
+    // 풍성한 활엽수 잎 군락 (Layered Circles)
+    const r = size * 0.36;
+    ctx.fillStyle = '#2e7534';
+    ctx.beginPath();
+    ctx.arc(x, y - size * 0.05, r * 1.1, 0, Math.PI * 2);
+    ctx.arc(x - r * 0.5, y + r * 0.2, r * 0.8, 0, Math.PI * 2);
+    ctx.arc(x + r * 0.5, y + r * 0.2, r * 0.8, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 햇빛 받는 상단 잎
+    ctx.fillStyle = '#419e4a';
+    ctx.beginPath();
+    ctx.arc(x - r * 0.3, y - size * 0.2, r * 0.75, 0, Math.PI * 2);
+    ctx.arc(x + r * 0.3, y - size * 0.15, r * 0.7, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 밝은 하이라이트 잎
+    ctx.fillStyle = '#5ec268';
+    ctx.beginPath();
+    ctx.arc(x - r * 0.1, y - size * 0.28, r * 0.48, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  function drawStreetLamp(ctx, x, y) {
+    ctx.save();
+    // 온화한 앰버빛 등불 아우라 (Glow)
+    ctx.fillStyle = 'rgba(254, 240, 138, 0.22)';
+    ctx.beginPath();
+    ctx.arc(x, y - 28, 26, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 검은 철제 기둥 (Wrought Iron Lamp Post)
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x, y - 24);
+    ctx.stroke();
+
+    // 기둥 받침
+    ctx.fillStyle = '#1e293b';
+    ctx.beginPath();
+    ctx.ellipse(x, y, 7, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 랜턴 등기구 (헤드)
+    ctx.fillStyle = '#0f172a';
+    ctx.fillRect(x - 6, y - 32, 12, 3);
+    ctx.fillRect(x - 4, y - 36, 8, 4);
+
+    // 빛나는 노란 유리창
+    ctx.fillStyle = '#fef08a';
+    ctx.fillRect(x - 5, y - 29, 10, 8);
+    ctx.strokeStyle = '#eab308';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x - 5, y - 29, 10, 8);
+
+    ctx.restore();
+  }
+
+  function drawFlowerPatch(ctx, x, y, color) {
+    ctx.save();
+    ctx.fillStyle = color || '#fef08a';
+    const offsets = [
+      [0, 0], [-6, -4], [6, -3], [-4, 6], [5, 5], [10, 1]
+    ];
+    offsets.forEach(([ox, oy]) => {
+      ctx.beginPath();
+      ctx.arc(x + ox, y + oy, 3, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(x + ox - 1, y + oy - 1, 2, 2);
+      ctx.fillStyle = color || '#fef08a';
+    });
+    ctx.restore();
+  }
+
+  function drawBench(ctx, x, y, angle) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+
+    // 벤치 그림자
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+    ctx.fillRect(-22, -8, 44, 20);
+
+    // 철제 다리/팔걸이
+    ctx.strokeStyle = '#1e293b';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(-20, -6, 40, 16);
+
+    // 원목 널빤지 시트
+    ctx.fillStyle = '#854d0e';
+    ctx.fillRect(-18, -4, 36, 6);
+    ctx.fillRect(-18, 4, 36, 6);
+
+    ctx.restore();
+  }
+
   function drawCentralPlaza() {
     const plaza = mapConfig.plaza;
 
-    // 1. 기본 원형 아고라 석조 바닥
-    ctx.fillStyle = '#e8dec8';
+    // 1. 스위스 총회 광장 코블스톤 돌바닥 (기본 석조)
+    ctx.fillStyle = '#dfd5be';
     ctx.beginPath();
     ctx.arc(plaza.centerX, plaza.centerY, plaza.radius, 0, Math.PI * 2);
     ctx.fill();
+
+    // 유럽 광장 방사형 동심원 패턴 (Concentric Cobblestone Rings)
+    ctx.strokeStyle = 'rgba(140, 123, 97, 0.22)';
+    ctx.lineWidth = 2;
+    for (let r = 50; r <= plaza.radius; r += 35) {
+      ctx.beginPath();
+      ctx.arc(plaza.centerX, plaza.centerY, r, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    // 방사형 돌길 선 (12방향)
+    for (let a = 0; a < Math.PI * 2; a += Math.PI / 6) {
+      ctx.beginPath();
+      ctx.moveTo(plaza.centerX + Math.cos(a) * 45, plaza.centerY + Math.sin(a) * 45);
+      ctx.lineTo(plaza.centerX + Math.cos(a) * plaza.radius, plaza.centerY + Math.sin(a) * plaza.radius);
+      ctx.stroke();
+    }
 
     // 2. [실시간 찬/반/중립 3색 진영 바닥 렌더링 (Visuals)]
     ctx.save();
@@ -2731,39 +3073,80 @@
 
     ctx.restore(); // 클리핑 복원
 
-    // 3. 광장 석조 테두리 링
-    ctx.strokeStyle = '#b8a98b';
-    ctx.lineWidth = 10;
+    // 3. 광장 유럽식 장식 외곽 링 & 꽃 화단 (Balustrade Ring)
+    ctx.strokeStyle = '#8c7b61';
+    ctx.lineWidth = 14;
+    ctx.beginPath();
+    ctx.arc(plaza.centerX, plaza.centerY, plaza.radius, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.strokeStyle = '#c5b597';
+    ctx.lineWidth = 6;
     ctx.beginPath();
     ctx.arc(plaza.centerX, plaza.centerY, plaza.radius, 0, Math.PI * 2);
     ctx.stroke();
 
     ctx.strokeStyle = '#8c7b61';
-    ctx.lineWidth = 12;
+    ctx.lineWidth = 10;
     ctx.beginPath();
     ctx.arc(plaza.centerX, plaza.centerY, plaza.radius - 80, 0, Math.PI * 2);
     ctx.stroke();
 
-    // 4. 분수대
+    // 4. 분수대 (고풍스러운 유럽 다단 분수 & 꽃 화관)
     const f = mapConfig.fountain;
-    ctx.fillStyle = '#60a5fa';
+
+    // 분수대 주변 원형 꽃 화단
+    ctx.fillStyle = 'rgba(16, 185, 129, 0.35)';
+    ctx.beginPath();
+    ctx.arc(f.x, f.y, f.radius + 14, 0, Math.PI * 2);
+    ctx.fill();
+
+    const flowerColors = ['#ef4444', '#f59e0b', '#ec4899', '#3b82f6'];
+    for (let fa = 0; fa < Math.PI * 2; fa += Math.PI / 8) {
+      const fx = f.x + Math.cos(fa) * (f.radius + 7);
+      const fy = f.y + Math.sin(fa) * (f.radius + 7);
+      ctx.fillStyle = flowerColors[Math.floor(fa * 3) % flowerColors.length];
+      ctx.beginPath();
+      ctx.arc(fx, fy, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 분수 석조 외벽 수조
+    ctx.fillStyle = '#b8a98b';
     ctx.beginPath();
     ctx.arc(f.x, f.y, f.radius, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = '#ffffff';
+    ctx.strokeStyle = '#786950';
     ctx.lineWidth = 4;
     ctx.stroke();
 
-    const wave = (Date.now() / 600) % (Math.PI * 2);
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+    // 맑은 물
+    ctx.fillStyle = '#38bdf8';
     ctx.beginPath();
-    ctx.arc(f.x, f.y, 16 + Math.sin(wave) * 6, 0, Math.PI * 2);
+    ctx.arc(f.x, f.y, f.radius - 6, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 분수 물결 애니메이션
+    const wave = (Date.now() / 500) % (Math.PI * 2);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(f.x, f.y, 14 + Math.sin(wave) * 6, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // 분수 중앙 석탑 노즐
+    ctx.fillStyle = '#e2e8f0';
+    ctx.beginPath();
+    ctx.arc(f.x, f.y, 7, 0, Math.PI * 2);
     ctx.fill();
 
     // 5. 광장 명판
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
     drawRoundRect(ctx, plaza.centerX - 130, plaza.centerY - plaza.radius - 32, 260, 36, 18);
     ctx.fill();
+    ctx.strokeStyle = '#f59e0b';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 14px sans-serif';
     ctx.textAlign = 'center';
@@ -2934,30 +3317,174 @@
       const left = cafe.x - cafe.w / 2;
       const top = cafe.y - cafe.h / 2;
 
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
-      drawRoundRect(ctx, left + 8, top + 10, cafe.w, cafe.h, 20);
+      // 1. 카페 바닥 부드러운 그림자 (Soft Drop Shadow)
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.24)';
+      drawRoundRect(ctx, left + 10, top + 14, cafe.w, cafe.h, 24);
       ctx.fill();
 
-      ctx.fillStyle = '#f8fafc';
+      // 2. 카페 본체 (스위스 샬레 크림 벽체 & 목조 기둥)
+      ctx.fillStyle = '#fffdf5';
       drawRoundRect(ctx, left, top, cafe.w, cafe.h, 20);
       ctx.fill();
 
-      // 지붕
-      ctx.fillStyle = cafe.color;
-      drawRoundRect(ctx, left, top, cafe.w, 54, 16);
-      ctx.fill();
-
-      ctx.strokeStyle = '#cbd5e1';
-      ctx.lineWidth = 3;
+      // 목조 외곽 테두리 프레임
+      ctx.strokeStyle = '#78350f';
+      ctx.lineWidth = 4;
       drawRoundRect(ctx, left, top, cafe.w, cafe.h, 20);
       ctx.stroke();
 
-      // 테이블 & 의자
+      // 3. 야외 원목 테라스 데크 바닥 (Warm Wooden Deck Planks)
+      const deckTop = top + 56;
+      const deckHeight = cafe.h - 56;
       ctx.fillStyle = '#d97706';
-      ctx.beginPath();
-      ctx.arc(cafe.x - 45, cafe.y + 20, 18, 0, Math.PI * 2);
-      ctx.arc(cafe.x + 45, cafe.y + 20, 18, 0, Math.PI * 2);
+      drawRoundRect(ctx, left + 6, deckTop, cafe.w - 12, deckHeight - 6, 12);
       ctx.fill();
+
+      // 테라스 마루 널빤지 선 (Plank Grooves)
+      ctx.strokeStyle = 'rgba(120, 53, 15, 0.35)';
+      ctx.lineWidth = 1.5;
+      for (let py = deckTop + 24; py < top + cafe.h - 10; py += 22) {
+        ctx.beginPath();
+        ctx.moveTo(left + 10, py);
+        ctx.lineTo(left + cafe.w - 10, py);
+        ctx.stroke();
+      }
+
+      // 4. [유럽풍 스트라이프 차양 천막 (Striped Fabric Awning)]
+      const awningHeight = 54;
+      const stripeCount = 10;
+      const stripeWidth = cafe.w / stripeCount;
+
+      ctx.save();
+      // 지붕 영역 클리핑 (상단 라운드 처리)
+      ctx.beginPath();
+      drawRoundRect(ctx, left, top, cafe.w, awningHeight, 16);
+      ctx.clip();
+
+      // 교대 스트라이프 (White + Cafe Color)
+      for (let si = 0; si < stripeCount; si++) {
+        ctx.fillStyle = si % 2 === 0 ? cafe.color : '#ffffff';
+        ctx.fillRect(left + si * stripeWidth, top, stripeWidth, awningHeight);
+      }
+      ctx.restore();
+
+      // 차양 천막 밑단 물결 무늬 (Scalloped Wavy Hem)
+      ctx.fillStyle = cafe.color;
+      for (let si = 0; si < stripeCount; si++) {
+        ctx.beginPath();
+        ctx.arc(left + si * stripeWidth + stripeWidth / 2, top + awningHeight, stripeWidth / 2, 0, Math.PI);
+        ctx.fill();
+      }
+
+      // 차양 천막 그림자
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+      ctx.fillRect(left + 4, top + awningHeight + 4, cafe.w - 8, 8);
+
+      // 5. 창문 & 붉은 제라늄 꽃 화분 (Window Planter Boxes)
+      // 좌측 창문 & 화분
+      ctx.fillStyle = '#38bdf8';
+      drawRoundRect(ctx, left + 14, top + 64, 28, 36, 6);
+      ctx.fill();
+      ctx.strokeStyle = '#78350f';
+      ctx.lineWidth = 2;
+      drawRoundRect(ctx, left + 14, top + 64, 28, 36, 6);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(left + 28, top + 64);
+      ctx.lineTo(left + 28, top + 100);
+      ctx.moveTo(left + 14, top + 82);
+      ctx.lineTo(left + 42, top + 82);
+      ctx.stroke();
+
+      ctx.fillStyle = '#78350f';
+      ctx.fillRect(left + 10, top + 98, 36, 7);
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath();
+      ctx.arc(left + 18, top + 96, 4, 0, Math.PI * 2);
+      ctx.arc(left + 28, top + 94, 4.5, 0, Math.PI * 2);
+      ctx.arc(left + 38, top + 96, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 우측 창문 & 화분
+      const rightWinX = left + cafe.w - 42;
+      ctx.fillStyle = '#38bdf8';
+      drawRoundRect(ctx, rightWinX, top + 64, 28, 36, 6);
+      ctx.fill();
+      ctx.strokeStyle = '#78350f';
+      ctx.lineWidth = 2;
+      drawRoundRect(ctx, rightWinX, top + 64, 28, 36, 6);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(rightWinX + 14, top + 64);
+      ctx.lineTo(rightWinX + 14, top + 100);
+      ctx.moveTo(rightWinX, top + 82);
+      ctx.lineTo(rightWinX + 28, top + 82);
+      ctx.stroke();
+
+      ctx.fillStyle = '#78350f';
+      ctx.fillRect(rightWinX - 4, top + 98, 36, 7);
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath();
+      ctx.arc(rightWinX + 4, top + 96, 4, 0, Math.PI * 2);
+      ctx.arc(rightWinX + 14, top + 94, 4.5, 0, Math.PI * 2);
+      ctx.arc(rightWinX + 24, top + 96, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 6. 비스트로 원형 테이블 & 의자 (Bistro Tables & Chairs)
+      const tableY = cafe.y + 36;
+      const leftTableX = cafe.x - 48;
+      const rightTableX = cafe.x + 48;
+
+      // 테이블 1 (좌측)
+      ctx.fillStyle = '#92400e';
+      ctx.beginPath();
+      ctx.arc(leftTableX - 22, tableY, 7, 0, Math.PI * 2);
+      ctx.arc(leftTableX + 22, tableY, 7, 0, Math.PI * 2);
+      ctx.arc(leftTableX, tableY - 22, 7, 0, Math.PI * 2);
+      ctx.arc(leftTableX, tableY + 22, 7, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#451a03';
+      ctx.beginPath();
+      ctx.arc(leftTableX, tableY, 18, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#fef08a';
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(leftTableX, tableY, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 테이블 2 (우측)
+      ctx.fillStyle = '#92400e';
+      ctx.beginPath();
+      ctx.arc(rightTableX - 22, tableY, 7, 0, Math.PI * 2);
+      ctx.arc(rightTableX + 22, tableY, 7, 0, Math.PI * 2);
+      ctx.arc(rightTableX, tableY - 22, 7, 0, Math.PI * 2);
+      ctx.arc(rightTableX, tableY + 22, 7, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#451a03';
+      ctx.beginPath();
+      ctx.arc(rightTableX, tableY, 18, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#fef08a';
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(rightTableX, tableY, 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 7. 실내 바리스타 커피 카운터 (중앙 상단)
+      ctx.fillStyle = '#78350f';
+      drawRoundRect(ctx, cafe.x - 24, top + 64, 48, 18, 5);
+      ctx.fill();
+      ctx.fillStyle = '#fef08a';
+      ctx.font = '12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('☕', cafe.x, top + 77);
 
       // 인원 계산
       let count = 0;
@@ -2965,10 +3492,10 @@
       otherPlayers.forEach(p => { if (p.cafeId === cafe.id) count++; });
       const isFull = count >= cafe.max;
 
-      // [물리 충돌 시각화] 정원 4명 마감 시 입구 바리케이드 차단선 렌더링!
+      // 8. 입구 문 및 차단선 (Entrance & Barricade)
       if (isFull) {
-        ctx.fillStyle = 'rgba(239, 68, 68, 0.9)';
-        drawRoundRect(ctx, cafe.x - 38, top + cafe.h - 18, 76, 18, 8);
+        ctx.fillStyle = 'rgba(239, 68, 68, 0.95)';
+        drawRoundRect(ctx, cafe.x - 42, top + cafe.h - 18, 84, 18, 9);
         ctx.fill();
         ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 2;
@@ -2976,32 +3503,40 @@
         ctx.fillStyle = '#ffffff';
         ctx.font = 'bold 10px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('⛔ 정원 마감', cafe.x, top + cafe.h - 6);
+        ctx.fillText('⛔ 정원 마감 (4/4)', cafe.x, top + cafe.h - 5);
       } else {
-        ctx.fillStyle = cafe.color;
-        drawRoundRect(ctx, cafe.x - 30, top + cafe.h - 14, 60, 14, 6);
+        ctx.fillStyle = '#475569';
+        drawRoundRect(ctx, cafe.x - 34, top + cafe.h - 14, 68, 14, 6);
         ctx.fill();
-        ctx.fillStyle = '#ffffff';
+        ctx.fillStyle = '#fef08a';
         ctx.font = 'bold 10px sans-serif';
         ctx.textAlign = 'center';
-        ctx.fillText('ENTRANCE', cafe.x, top + cafe.h - 4);
+        ctx.fillText('☕ 입 장 (터치)', cafe.x, top + cafe.h - 3);
       }
 
-      // 상단 간판
-      ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
-      drawRoundRect(ctx, cafe.x - 70, top - 32, 140, 26, 13);
+      // 9. 상단 클래식 유럽식 철제 걸이 간판 (Ornate Hanging Sign)
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+      drawRoundRect(ctx, cafe.x - 75, top - 36, 150, 28, 14);
       ctx.fill();
+      ctx.strokeStyle = cafe.color;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
       ctx.fillStyle = '#ffffff';
       ctx.font = 'bold 13px sans-serif';
-      ctx.fillText(`☕ ${cafe.name}`, cafe.x, top - 19);
+      ctx.textAlign = 'center';
+      ctx.fillText(`☕ ${cafe.name}`, cafe.x, top - 22);
 
-      // 게이지 뱃지
+      // 인원수 게이지 뱃지 (상단 간판 바로 아래)
       ctx.fillStyle = isFull ? '#ef4444' : '#10b981';
-      drawRoundRect(ctx, cafe.x - 36, top + 60, 72, 20, 10);
+      drawRoundRect(ctx, cafe.x - 36, top - 6, 72, 18, 9);
       ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1;
+      ctx.stroke();
       ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 11px sans-serif';
-      ctx.fillText(`👥 ${count}/${cafe.max}명`, cafe.x, top + 70);
+      ctx.font = 'bold 10px sans-serif';
+      ctx.fillText(`👥 ${count}/${cafe.max}명`, cafe.x, top + 6);
     });
   }
 
