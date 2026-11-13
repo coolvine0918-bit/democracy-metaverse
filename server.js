@@ -7,8 +7,8 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: '*' },
-  pingInterval: 20000,
-  pingTimeout: 20000
+  pingInterval: 25000,
+  pingTimeout: 60000 // 학교 Wi-Fi 및 모바일 태블릿 지연 방어 (기존 20초 -> 60초로 3배 확대)
 });
 
 const PORT = process.env.PORT || 3000;
@@ -89,6 +89,7 @@ const NOTICE_MATERIALS = {
 
 // 서버 상태 및 학급(Class) 관리
 const players = new Map(); // socket.id -> player state
+const disconnectedPlayerCache = new Map(); // className_nickname -> 직전 세션 상태 캐시 (15분 유지)
 const classSessionHistory = []; // 지난 학급 수업 결과 아카이브 목록
 
 const gameState = {
@@ -314,15 +315,32 @@ io.on('connection', (socket) => {
     let safeClass = (className || gameState.currentClassName || '1반').trim();
     let charIdx = Math.max(0, Math.min(4, parseInt(characterIndex) || 0));
 
+    let preservedData = null;
+
     if (isAdmin) {
       safeNick = '민부영 선생님';
       safeClass = '교사';
       charIdx = 99; // 교사용 전용 캐릭터 고정 번호
     } else {
-      // [학생 재접속/튕김 자동 정리]: 동일 닉네임의 기존 학생 세션이 남아있다면 중복 아바타 즉시 삭제
+      // [학생 재접속/튕김 복구]: 동일 닉네임의 기존 학생 세션이 남아있다면 퀘스트/아이템/위치 보존
       for (const [existingId, p] of players.entries()) {
         if (existingId !== socket.id && !p.isAdmin && p.nickname === safeNick) {
-          console.log(`[중복/재접속 감지] 기존 세션(${existingId}, ${safeNick})을 새 세션(${socket.id})으로 교체합니다.`);
+          console.log(`[중복/재접속 감지] 기존 활성 세션(${existingId}, ${safeNick})의 수업 데이터를 새 세션(${socket.id})으로 완벽 복원합니다.`);
+          preservedData = {
+            x: p.x,
+            y: p.y,
+            facing: p.facing,
+            cafeId: p.cafeId,
+            vote: p.vote,
+            currentStance: p.currentStance,
+            handRaised: p.handRaised,
+            hasBadge: p.hasBadge,
+            quizCompleted: p.quizCompleted,
+            votingPaperCount: p.votingPaperCount,
+            quest: p.quest,
+            inventory: p.inventory,
+            characterIndex: p.characterIndex
+          };
           players.delete(existingId);
           gameState.handRaiseQueue = gameState.handRaiseQueue.filter(i => i.socketId !== existingId);
           const oldSock = io.sockets.sockets.get(existingId);
@@ -330,13 +348,29 @@ io.on('connection', (socket) => {
             try { oldSock.disconnect(true); } catch (e) {}
           }
           io.emit('playerLeft', { id: existingId, nickname: p.nickname });
+          break;
         }
+      }
+
+      // 만약 연결이 완전히 끊겨서 나갔다가 재접속한 경우 (15분 이내 캐시에서 복원)
+      const cacheKey = `${safeClass}_${safeNick}`;
+      if (!preservedData && disconnectedPlayerCache.has(cacheKey)) {
+        const cached = disconnectedPlayerCache.get(cacheKey);
+        if (Date.now() - cached.cachedAt < 15 * 60 * 1000) {
+          console.log(`[세션 캐시 복원 성공] 튕겼던 학생(${safeNick})의 이전 수업 상태(투표용지, 퀘스트, 커피)를 100% 복원합니다.`);
+          preservedData = cached;
+        }
+        disconnectedPlayerCache.delete(cacheKey);
       }
     }
 
-    // 중앙 광장 내 스폰 위치 설정 (교사는 북쪽 단상 앞 넓고 트인 위치)
+    // 중앙 광장 내 스폰 위치 설정 (복원 데이터가 있으면 기존 위치 유지)
     let spawnX, spawnY;
-    if (isAdmin) {
+    if (preservedData) {
+      spawnX = preservedData.x;
+      spawnY = preservedData.y;
+      charIdx = (preservedData.characterIndex !== undefined) ? preservedData.characterIndex : charIdx;
+    } else if (isAdmin) {
       spawnX = MAP_CONFIG.plaza.centerX; // 1200
       spawnY = 740; // 투표함(840)과 충분히 떨어진 넓은 단상 위치 (충돌 방지)
     } else {
@@ -353,31 +387,31 @@ io.on('connection', (socket) => {
       characterIndex: charIdx,
       x: spawnX,
       y: spawnY,
-      facing: 'down',
+      facing: preservedData ? (preservedData.facing || 'down') : 'down',
       statusEmoji: '',
       speechText: '',
       speechUntil: 0,
-      cafeId: null,
-      vote: null,
-      currentStance: 'neutral', // 'pro' | 'con' | 'neutral'
-      handRaised: false,
-      hasBadge: false,
-      quizCompleted: !!isAdmin, // 교사는 기본 통과
-      votingPaperCount: isAdmin ? 99 : 0, // 학생은 퀴즈 통과 시 3장 지급
+      cafeId: preservedData ? preservedData.cafeId : null,
+      vote: preservedData ? preservedData.vote : null,
+      currentStance: preservedData ? (preservedData.currentStance || 'neutral') : 'neutral',
+      handRaised: preservedData ? !!preservedData.handRaised : false,
+      hasBadge: preservedData ? !!preservedData.hasBadge : false,
+      quizCompleted: preservedData ? !!preservedData.quizCompleted : !!isAdmin,
+      votingPaperCount: preservedData ? preservedData.votingPaperCount : (isAdmin ? 99 : 0),
       joinedAt: Date.now(),
-      quest: {
+      quest: preservedData ? preservedData.quest : {
         m1: false,
         m2: false,
         m3: 0,
         m4: false
       },
-      inventory: isAdmin ? [
+      inventory: preservedData ? preservedData.inventory : (isAdmin ? [
         { id: 'id_card', name: '교사 관리자 신분증', icon: '🧑‍🏫', desc: '총회 관리자 신분증' },
         { id: 'voting_papers', name: '의결 투표용지 (무제한)', icon: '📜', count: 99, type: 'ballot', voteChoice: 'agree', desc: '관리자 시연용 투표용지' }
       ] : [
         { id: 'id_card', name: '시민 신분증', icon: '🪪', desc: `${safeClass} 소속 시민 신분증` },
         { id: 'debate_notes', name: '토론 노트', icon: '📔', desc: '조례안 쟁점 요약 수첩' }
-      ],
+      ]),
       isAdmin: !!isAdmin
     };
 
@@ -1027,6 +1061,7 @@ io.on('connection', (socket) => {
     gameState.currentClassName = newClass;
     gameState.voteActive = false;
     gameState.handRaiseQueue = [];
+    disconnectedPlayerCache.clear(); // 새 학급 수업 시작 시 이전 학급 캐시 초기화
 
     // 접속 중인 모든 학생 상태 리셋
     for (const player of players.values()) {
@@ -1229,6 +1264,27 @@ io.on('connection', (socket) => {
     console.log(`[퇴장] 클라이언트 연결 종료: ${socket.id}`);
     const player = players.get(socket.id);
     if (player) {
+      if (!player.isAdmin) {
+        // 15분 동안 학생의 퀘스트, 인벤토리, 투표용지, 위치 데이터 캐싱 (튕김 복구용)
+        const cacheKey = `${player.className}_${player.nickname}`;
+        disconnectedPlayerCache.set(cacheKey, {
+          x: player.x,
+          y: player.y,
+          facing: player.facing,
+          cafeId: player.cafeId,
+          vote: player.vote,
+          currentStance: player.currentStance,
+          handRaised: player.handRaised,
+          hasBadge: player.hasBadge,
+          quizCompleted: player.quizCompleted,
+          votingPaperCount: player.votingPaperCount,
+          quest: player.quest,
+          inventory: player.inventory,
+          characterIndex: player.characterIndex,
+          cachedAt: Date.now()
+        });
+      }
+
       gameState.handRaiseQueue = gameState.handRaiseQueue.filter(item => item.socketId !== socket.id);
       players.delete(socket.id);
 

@@ -343,11 +343,40 @@
     if (e.key === 'Enter') joinGame();
   });
 
+  // --- 3-1. 💡 태블릿 화면 꺼짐 방지 (Screen Wake Lock API) ---
+  let screenWakeLock = null;
+  async function requestScreenWakeLock() {
+    if ('wakeLock' in navigator) {
+      try {
+        screenWakeLock = await navigator.wakeLock.request('screen');
+        console.log('💡 [Screen WakeLock] 태블릿 화면 꺼짐 방지 활성화 완료');
+        screenWakeLock.addEventListener('release', () => {
+          screenWakeLock = null;
+        });
+      } catch (err) {
+        console.warn('Screen WakeLock 활성화 실패 또는 미지원:', err);
+      }
+    }
+  }
+
+  // 브라우저 탭 복귀 시 화면 꺼짐 방지 자동 재요청
+  document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState === 'visible' && !screenWakeLock) {
+      await requestScreenWakeLock();
+    }
+  });
+
+  // 사용자가 화면을 터치할 때 활성화
+  window.addEventListener('pointerdown', () => {
+    if (!screenWakeLock) requestScreenWakeLock();
+  }, { once: false });
+
   function joinGame() {
     const nick = (inputNickname.value || '').trim() || '시민 학생';
     const selectClassElem = document.getElementById('selectClass');
     const userClass = selectClassElem ? selectClassElem.value : '1반';
     startBgm();
+    requestScreenWakeLock();
 
     loginModal.classList.add('hidden');
     bottomActionBar.classList.remove('hidden');
@@ -369,6 +398,7 @@
     adminPanel.classList.remove('closed'); // 관리자 콘솔 바로 오픈
     isJoined = true;
     startBgm();
+    requestScreenWakeLock();
     initSocket('민부영 선생님', 99, '교사');
     setTimeout(resizeCanvas, 50);
   }
@@ -379,12 +409,20 @@
     socket = io();
 
     socket.on('connect', () => {
+      if (myPlayer) {
+        showToast('✅ 서버에 다시 연결되었습니다! (이전 상태 복원 완료)', 'info');
+      }
       socket.emit('joinPlaza', {
         nickname,
         characterIndex,
         className,
         isAdmin
       });
+    });
+
+    socket.on('disconnect', (reason) => {
+      console.warn('[소켓 연결 해제]', reason);
+      showToast('⚠️ 네트워크 연결이 일시적으로 끊겼습니다. 자동 재연결 중...', 'warn');
     });
 
     socket.on('initSuccess', (data) => {
