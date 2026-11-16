@@ -18,8 +18,16 @@ app.get('/healthz', (req, res) => {
   res.status(200).send('OK');
 });
 
-// 정적 파일 서빙 (브라우저 캐싱 적용으로 30명 태블릿 동시 로딩 시 대역폭 대폭 절감)
-const staticOptions = { maxAge: '1h' };
+// 정적 파일 서빙: HTML, JS, CSS는 실시간 반영(no-cache)하여 브라우저 옛날 캐시 문제 원천 차단
+const staticOptions = {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html') || filePath.endsWith('.js') || filePath.endsWith('.css')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    } else {
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+    }
+  }
+};
 app.use(express.static(path.join(__dirname, 'public'), staticOptions));
 app.use('/assets', express.static(path.join(__dirname, 'assets'), staticOptions));
 app.use('/assets', express.static(path.join(__dirname, 'public/assets'), staticOptions));
