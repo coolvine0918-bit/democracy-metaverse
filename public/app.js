@@ -233,13 +233,56 @@
   // 이펙트 파티클 리스트 (컨페티, 하이파이브 스파크)
   const particles = [];
 
-  // 카메라
+  // 카메라 (화면 자동 맞춤 및 줌/패닝 지원)
   const camera = {
     x: 1200,
-    y: 920,
+    y: 930,
     targetX: 1200,
-    targetY: 920
+    targetY: 930,
+    zoom: 1.0,
+    targetZoom: 1.0,
+    isFitMode: true
   };
+
+  function screenToWorld(screenX, screenY) {
+    const z = camera.zoom || 1;
+    return {
+      x: Math.round((screenX - screenWidth / 2) / z + camera.x),
+      y: Math.round((screenY - screenHeight / 2) / z + camera.y)
+    };
+  }
+
+  function updateAutoFitZoom() {
+    const topBarHeight = 65;
+    const bottomBarHeight = 90;
+    const usableW = Math.max(320, screenWidth - 40);
+    const usableH = Math.max(300, screenHeight - (topBarHeight + bottomBarHeight));
+
+    // 중앙 광장(반경 300)과 외곽 7개 카페 전역(x: 340~2060, y: 190~1630)이 한 화면에 쏙 들어가도록 맞춤
+    const targetW = 1860;
+    const targetH = 1520;
+
+    const scaleX = usableW / targetW;
+    const scaleY = usableH / targetH;
+
+    const fitZoom = Math.max(0.32, Math.min(scaleX, scaleY, 0.95));
+    return Number(fitZoom.toFixed(3));
+  }
+
+  function updateZoomUI() {
+    const zoomText = document.getElementById('zoomPercentText');
+    const fitBtn = document.getElementById('btnZoomFit');
+    if (zoomText) {
+      zoomText.textContent = `${Math.round((camera.zoom || camera.targetZoom || 1) * 100)}%`;
+    }
+    if (fitBtn) {
+      if (camera.isFitMode) {
+        fitBtn.classList.add('active');
+      } else {
+        fitBtn.classList.remove('active');
+      }
+    }
+  }
 
   // 조작
   const joystick = {
@@ -324,6 +367,17 @@
     canvas.style.width = screenWidth + 'px';
     canvas.style.height = screenHeight + 'px';
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    const fitZoom = updateAutoFitZoom();
+    if (camera.isFitMode) {
+      camera.targetZoom = fitZoom;
+      camera.zoom = fitZoom;
+      camera.targetX = 1200;
+      camera.targetY = 930 + 15 / fitZoom;
+      camera.x = 1200;
+      camera.y = camera.targetY;
+    }
+    updateZoomUI();
   }
   window.addEventListener('resize', resizeCanvas);
   window.addEventListener('orientationchange', () => setTimeout(resizeCanvas, 150));
@@ -396,6 +450,7 @@
     bottomActionBar.classList.remove('hidden');
     adminContainer.classList.remove('hidden');
     adminPanel.classList.remove('closed'); // 관리자 콘솔 바로 오픈
+    document.body.classList.remove('admin-closed');
     isJoined = true;
     startBgm();
     requestScreenWakeLock();
@@ -438,10 +493,12 @@
             walkCycle: 0,
             isMoving: false
           };
-          camera.x = p.x;
-          camera.y = p.y;
-          camera.targetX = p.x;
-          camera.targetY = p.y;
+          if (!camera.isFitMode) {
+            camera.x = p.x;
+            camera.y = p.y;
+            camera.targetX = p.x;
+            camera.targetY = p.y;
+          }
           updateQuestUI(myPlayer.quest);
           renderInventoryUI(myPlayer.inventory);
           if (myPlayer.inventory) {
@@ -608,8 +665,10 @@
           myPlayer.x = pData.x;
           myPlayer.y = pData.y;
           myPlayer.cafeId = null;
-          camera.x = pData.x;
-          camera.y = pData.y;
+          if (!camera.isFitMode) {
+            camera.x = pData.x;
+            camera.y = pData.y;
+          }
           handleStanceTransition(myPlayer.x, myPlayer.y);
           // 내 아바타 위치에 화려한 소환 빛무리 & 파동 이펙트 폭발
           triggerTeleportArrivalEffect(pData.x, pData.y);
@@ -1064,8 +1123,7 @@
       if (!draggingItem) return;
 
       // 캔버스 상 투표함 좌표와 드롭된 스크린 좌표 판정
-      const worldDropX = e.clientX + camera.x - screenWidth / 2;
-      const worldDropY = e.clientY + camera.y - screenHeight / 2;
+      const { x: worldDropX, y: worldDropY } = screenToWorld(e.clientX, e.clientY);
 
       const distToBox = Math.hypot(worldDropX - mapConfig.ballotBox.x, worldDropY - mapConfig.ballotBox.y);
       if (distToBox <= 80) {
@@ -1509,8 +1567,7 @@
 
   // --- 9. 👥 MMO 학생 아바타 터치 상호작용 (하이파이브, 귓속말) ---
   canvas.addEventListener('click', (e) => {
-    const worldClickX = e.clientX + camera.x - screenWidth / 2;
-    const worldClickY = e.clientY + camera.y - screenHeight / 2;
+    const { x: worldClickX, y: worldClickY } = screenToWorld(e.clientX, e.clientY);
 
     // 1. 게시판 터치 판정
     const b = mapConfig.noticeBoard;
@@ -1652,8 +1709,7 @@
     if (touch.clientX > screenWidth - 320 && touch.clientY > screenHeight - 160) return;
     if (touch.clientY < 80) return;
 
-    const worldX = Math.round(touch.clientX + camera.x - screenWidth / 2);
-    const worldY = Math.round(touch.clientY + camera.y - screenHeight / 2);
+    const { x: worldX, y: worldY } = screenToWorld(touch.clientX, touch.clientY);
 
     // 게시판 또는 NPC 터치 시 걸어가지 않고 즉시 상호작용
     const npc = mapConfig.quizNpc;
@@ -1669,8 +1725,7 @@
   // [노트북/데스크톱 마우스 클릭 이동 지원]
   canvas.addEventListener('mousedown', (e) => {
     if (e.button !== 0) return; // 마우스 좌클릭만 반응
-    const worldX = Math.round(e.clientX + camera.x - screenWidth / 2);
-    const worldY = Math.round(e.clientY + camera.y - screenHeight / 2);
+    const { x: worldX, y: worldY } = screenToWorld(e.clientX, e.clientY);
 
     // 게시판 또는 NPC 클릭 시 이동 무시 (클릭 이벤트로 모달 실행)
     const npc = mapConfig.quizNpc;
@@ -1682,6 +1737,130 @@
     tapMove.targetX = worldX;
     tapMove.targetY = worldY;
   });
+
+  // [노트북/데스크톱 마우스 휠 부드러운 줌]
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    camera.isFitMode = false;
+    const factor = e.deltaY < 0 ? 1.12 : 0.89;
+    const curZoom = camera.targetZoom || camera.zoom || 1;
+    const newZoom = Math.max(0.3, Math.min(1.5, curZoom * factor));
+
+    // 마우스 커서 위치 기준 줌 중심 계산
+    const mouseWorldX = (e.clientX - screenWidth / 2) / (camera.zoom || 1) + camera.x;
+    const mouseWorldY = (e.clientY - screenHeight / 2) / (camera.zoom || 1) + camera.y;
+
+    camera.targetZoom = Number(newZoom.toFixed(3));
+    camera.targetX = mouseWorldX - (e.clientX - screenWidth / 2) / newZoom;
+    camera.targetY = mouseWorldY - (e.clientY - screenHeight / 2) / newZoom;
+    updateZoomUI();
+  }, { passive: false });
+
+  // [노트북/데스크톱 마우스 우클릭 / 휠클릭 화면 드래그 패닝]
+  let isPanning = false;
+  let panStartX = 0;
+  let panStartY = 0;
+
+  canvas.addEventListener('contextmenu', (e) => {
+    if (isPanning) e.preventDefault();
+  });
+
+  window.addEventListener('mousedown', (e) => {
+    if (e.target !== canvas) return;
+    if (e.button === 2 || e.button === 1) { // 우클릭 또는 휠클릭
+      e.preventDefault();
+      isPanning = true;
+      panStartX = e.clientX;
+      panStartY = e.clientY;
+      camera.isFitMode = false;
+      updateZoomUI();
+    }
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!isPanning) return;
+    const curZoom = camera.zoom || 1;
+    const dx = (e.clientX - panStartX) / curZoom;
+    const dy = (e.clientY - panStartY) / curZoom;
+    panStartX = e.clientX;
+    panStartY = e.clientY;
+    camera.x -= dx;
+    camera.y -= dy;
+    camera.targetX = camera.x;
+    camera.targetY = camera.y;
+  });
+
+  window.addEventListener('mouseup', (e) => {
+    if (isPanning && (e.button === 2 || e.button === 1)) {
+      isPanning = false;
+    }
+  });
+
+  // [태블릿 두 손가락 핀치 투 줌 (Pinch-to-Zoom)]
+  let touchStartDist = 0;
+  let touchStartZoom = 1;
+
+  canvas.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 2) {
+      touchStartDist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      touchStartZoom = camera.targetZoom || camera.zoom || 1;
+      camera.isFitMode = false;
+    }
+  }, { passive: true });
+
+  canvas.addEventListener('touchmove', (e) => {
+    if (e.touches.length === 2 && touchStartDist > 0) {
+      const currentDist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      const factor = currentDist / touchStartDist;
+      camera.targetZoom = Number(Math.max(0.3, Math.min(1.5, touchStartZoom * factor)).toFixed(3));
+      updateZoomUI();
+    }
+  }, { passive: true });
+
+  canvas.addEventListener('touchend', (e) => {
+    if (e.touches.length < 2) {
+      touchStartDist = 0;
+    }
+  }, { passive: true });
+
+  // [상단 줌 컨트롤 버튼 리스너 등록]
+  const btnZoomIn = document.getElementById('btnZoomIn');
+  const btnZoomOut = document.getElementById('btnZoomOut');
+  const btnZoomFit = document.getElementById('btnZoomFit');
+
+  if (btnZoomIn) {
+    btnZoomIn.addEventListener('click', () => {
+      camera.isFitMode = false;
+      const curZoom = camera.targetZoom || camera.zoom || 1;
+      camera.targetZoom = Number(Math.min(1.5, curZoom * 1.25).toFixed(3));
+      updateZoomUI();
+    });
+  }
+  if (btnZoomOut) {
+    btnZoomOut.addEventListener('click', () => {
+      camera.isFitMode = false;
+      const curZoom = camera.targetZoom || camera.zoom || 1;
+      camera.targetZoom = Number(Math.max(0.3, curZoom * 0.8).toFixed(3));
+      updateZoomUI();
+    });
+  }
+  if (btnZoomFit) {
+    btnZoomFit.addEventListener('click', () => {
+      camera.isFitMode = true;
+      const fitZoom = updateAutoFitZoom();
+      camera.targetZoom = fitZoom;
+      camera.targetX = 1200;
+      camera.targetY = 930 + 15 / fitZoom;
+      updateZoomUI();
+      showToast('🔍 화면 전체 맞춤: 중앙 광장과 7개 카페를 한눈에 봅니다.', 'info');
+    });
+  }
 
   // [노트북 키보드 조작 처리]: 방향키(↑↓←→), WASD, 한글 ㅈ/ㄴ/ㅁ/ㅇ 및 브라우저 스크롤 방지
   function handleKeyEvent(e, isDown) {
@@ -1823,13 +2002,17 @@
   }
 
   // --- 12. 교사 관리자(Admin) 패널 ---
+  function syncAdminPanelState() {
+    document.body.classList.toggle('admin-closed', adminPanel.classList.contains('closed'));
+    resizeCanvas();
+  }
   btnAdminToggle.addEventListener('click', () => {
     adminPanel.classList.toggle('closed');
-    resizeCanvas();
+    syncAdminPanelState();
   });
   btnCloseAdmin.addEventListener('click', () => {
     adminPanel.classList.toggle('closed');
-    resizeCanvas();
+    syncAdminPanelState();
   });
 
   // --- [노트북 교사 모드 전용 키보드 단축키 (Keyboard Hotkeys)] ---
@@ -2832,11 +3015,20 @@
       }
     }
 
-    // 카메라 부드러운 추종
-    camera.targetX = myPlayer.x;
-    camera.targetY = myPlayer.y;
+    // 카메라 부드러운 추종 및 줌 보간
+    if (camera.isFitMode) {
+      camera.targetX = 1200;
+      camera.targetY = 930 + 15 / (camera.zoom || 1);
+    } else if (myPlayer) {
+      camera.targetX = myPlayer.x;
+      camera.targetY = myPlayer.y;
+    }
+
     camera.x += (camera.targetX - camera.x) * 0.12;
     camera.y += (camera.targetY - camera.y) * 0.12;
+    if (camera.targetZoom) {
+      camera.zoom += (camera.targetZoom - camera.zoom) * 0.15;
+    }
   }
 
   // --- 16. 캔버스 2D 렌더링 ---
@@ -2844,7 +3036,9 @@
     ctx.clearRect(0, 0, screenWidth, screenHeight);
 
     ctx.save();
-    ctx.translate(Math.round(screenWidth / 2 - camera.x), Math.round(screenHeight / 2 - camera.y));
+    ctx.translate(Math.round(screenWidth / 2), Math.round(screenHeight / 2));
+    ctx.scale(camera.zoom, camera.zoom);
+    ctx.translate(Math.round(-camera.x), Math.round(-camera.y));
 
     // 1. 잔디 & 길
     drawTerrain();
@@ -3073,10 +3267,12 @@
   }
 
   function drawMapDecorations() {
-    const camLeft = camera.x - screenWidth / 2 - 120;
-    const camRight = camera.x + screenWidth / 2 + 120;
-    const camTop = camera.y - screenHeight / 2 - 120;
-    const camBottom = camera.y + screenHeight / 2 + 120;
+    const halfW = (screenWidth / 2) / (camera.zoom || 1) + 140;
+    const halfH = (screenHeight / 2) / (camera.zoom || 1) + 140;
+    const camLeft = camera.x - halfW;
+    const camRight = camera.x + halfW;
+    const camTop = camera.y - halfH;
+    const camBottom = camera.y + halfH;
 
     SWISS_DECORATIONS.forEach(dec => {
       // 카메라 뷰포트 컬링: 화면 밖은 그리지 않음 (초고속 성능 보장)

@@ -444,6 +444,73 @@ html, body {
   text-overflow: ellipsis;
 }
 
+/* ================= 🔍 화면 줌 컨트롤 바 ================= */
+.zoom-control-bar {
+  display: flex;
+  align-items: center;
+  background: rgba(15, 23, 42, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 24px;
+  padding: 4px 8px;
+  gap: 5px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  pointer-events: auto;
+  user-select: none;
+}
+
+.btn-zoom, .btn-zoom-fit {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #f1f5f9;
+  font-weight: 700;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  user-select: none;
+}
+
+.btn-zoom {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.btn-zoom:hover {
+  background: rgba(139, 92, 246, 0.35);
+  border-color: #a78bfa;
+  transform: translateY(-1px);
+}
+
+.btn-zoom-fit {
+  height: 30px;
+  padding: 0 10px;
+  font-size: 0.82rem;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(139, 92, 246, 0.25));
+  border-color: rgba(167, 139, 250, 0.4);
+  color: #e0e7ff;
+}
+
+.btn-zoom-fit:hover, .btn-zoom-fit.active {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  border-color: #c4b5fd;
+  color: #ffffff;
+  box-shadow: 0 0 12px rgba(139, 92, 246, 0.5);
+}
+
+.zoom-percent-text {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #94a3b8;
+  min-width: 38px;
+  text-align: center;
+  padding: 0 2px;
+}
+
 .btn-sound {
   pointer-events: auto;
   width: 48px;
@@ -2692,6 +2759,34 @@ body.teacher-laptop-mode .admin-hotkeys-guide {
   body.teacher-laptop-mode .agenda-big-banner,
   body.teacher-laptop-mode .teacher-big-banner {
     right: 440px;
+  }
+
+  /* 관리자 패널 닫힘 상태 시 캔버스 및 UI 전역 100% 확장 (광장 가림/잘림 방지) */
+  body.teacher-laptop-mode.admin-closed #gameCanvas,
+  body.teacher-laptop-mode:has(.admin-panel.closed) #gameCanvas {
+    width: 100vw;
+  }
+
+  body.teacher-laptop-mode.admin-closed #topBarContainer,
+  body.teacher-laptop-mode:has(.admin-panel.closed) #topBarContainer {
+    right: 16px;
+  }
+
+  body.teacher-laptop-mode.admin-closed .action-bar,
+  body.teacher-laptop-mode:has(.admin-panel.closed) .action-bar {
+    right: 20px;
+  }
+
+  body.teacher-laptop-mode.admin-closed .chat-drawer,
+  body.teacher-laptop-mode:has(.admin-panel.closed) .chat-drawer {
+    right: 20px;
+  }
+
+  body.teacher-laptop-mode.admin-closed .agenda-big-banner,
+  body.teacher-laptop-mode.admin-closed .teacher-big-banner,
+  body.teacher-laptop-mode:has(.admin-panel.closed) .agenda-big-banner,
+  body.teacher-laptop-mode:has(.admin-panel.closed) .teacher-big-banner {
+    right: 0;
   }
 
   /* 교사 제어 콘솔: 우측 상시 도킹된 세련된 고정 사이드바 */
