@@ -469,22 +469,21 @@ io.on('connection', (socket) => {
       if (player.cafeId !== targetCafe.id) {
         const currentCount = getCafeOccupants(targetCafe.id, socket.id);
         if (currentCount >= targetCafe.max) {
-          const angleFromCenter = Math.atan2(clampedY - targetCafe.y, clampedX - targetCafe.x);
-          const bounceDistance = Math.max(targetCafe.w, targetCafe.h) / 2 + 60;
-          const bounceX = Math.round(targetCafe.x + Math.cos(angleFromCenter) * bounceDistance);
-          const bounceY = Math.round(targetCafe.y + Math.sin(angleFromCenter) * bounceDistance);
+          // [정원 마감 개선]: 멀리 튕겨내지 않고 출입문 앞 도로(안전 구역)에 부드럽게 멈춤
+          const stopX = targetCafe.x;
+          const stopY = targetCafe.y + targetCafe.h / 2 + 25;
 
-          player.x = bounceX;
-          player.y = bounceY;
+          player.x = stopX;
+          player.y = stopY;
 
           socket.emit('cafeEntryRejected', {
             cafeId: targetCafe.id,
             cafeName: targetCafe.name,
             max: targetCafe.max,
             current: currentCount,
-            bounceX,
-            bounceY,
-            message: `[정원 초과] '${targetCafe.name}'은 이미 4명이 모두 입장하여 입구가 차단되었습니다!`
+            bounceX: stopX,
+            bounceY: stopY,
+            message: `[정원 마감] '${targetCafe.name}'은 이미 4명이 모두 입장하여 입구가 차단되었습니다!`
           });
 
           io.emit('playerMoved', {
@@ -1264,6 +1263,71 @@ io.on('connection', (socket) => {
       io.emit('handRaiseQueueUpdated', gameState.handRaiseQueue);
       io.emit('questProgressUpdated', getQuestProgressSummary());
       io.emit('studentListUpdated', getConnectedStudentsList());
+    }
+  });
+
+  // 8-1. 학생 비상 탈출 (끼임/갇힘 발생 시 중앙 광장으로 즉시 탈출)
+  socket.on('emergencyEscape', () => {
+    const player = players.get(socket.id);
+    if (!player) return;
+
+    const safeX = MAP_CONFIG.plaza.centerX + Math.round((Math.random() - 0.5) * 60);
+    const safeY = MAP_CONFIG.plaza.centerY + Math.round((Math.random() - 0.5) * 60);
+
+    player.x = safeX;
+    player.y = safeY;
+    player.cafeId = null;
+
+    socket.emit('emergencyEscapeSuccess', {
+      x: safeX,
+      y: safeY,
+      message: '🚨 중앙 광장으로 안전하게 비상 탈출했습니다!'
+    });
+
+    io.emit('playerMoved', {
+      id: player.id,
+      x: player.x,
+      y: player.y,
+      facing: player.facing,
+      cafeId: player.cafeId
+    });
+
+    io.emit('cafeStatusUpdated', computeCafeStatus());
+  });
+
+  // 8-2. 교사 관리자 개별 학생 광장 소환 (학생 끼임/비정상 위치 원격 구출)
+  socket.on('adminSummonStudent', (data) => {
+    const admin = players.get(socket.id);
+    if (!admin || !admin.isAdmin) return;
+
+    const { studentId } = data || {};
+    const targetPlayer = players.get(studentId);
+    if (targetPlayer) {
+      const safeX = MAP_CONFIG.plaza.centerX + Math.round((Math.random() - 0.5) * 60);
+      const safeY = MAP_CONFIG.plaza.centerY + Math.round((Math.random() - 0.5) * 60);
+
+      targetPlayer.x = safeX;
+      targetPlayer.y = safeY;
+      targetPlayer.cafeId = null;
+
+      const targetSocket = io.sockets.sockets.get(studentId);
+      if (targetSocket) {
+        targetSocket.emit('emergencyEscapeSuccess', {
+          x: safeX,
+          y: safeY,
+          message: '👨‍🏫 선생님이 끼임 해결을 위해 중앙 광장으로 이동시켰습니다.'
+        });
+      }
+
+      io.emit('playerMoved', {
+        id: targetPlayer.id,
+        x: targetPlayer.x,
+        y: targetPlayer.y,
+        facing: targetPlayer.facing,
+        cafeId: targetPlayer.cafeId
+      });
+
+      io.emit('cafeStatusUpdated', computeCafeStatus());
     }
   });
 

@@ -613,6 +613,18 @@
       if (navigator.vibrate) navigator.vibrate(200);
     });
 
+    socket.on('emergencyEscapeSuccess', (data) => {
+      if (myPlayer) {
+        myPlayer.x = data.x;
+        myPlayer.y = data.y;
+        myPlayer.cafeId = null;
+        tapMove.active = false;
+        triggerTeleportArrivalEffect(data.x, data.y);
+      }
+      showToast(data.message || '🚨 중앙 광장으로 탈출했습니다!', '🚨');
+      playAudio(audioSuccess, 0.8);
+    });
+
     socket.on('cafeEntered', (data) => {
       locText.textContent = data.cafeName;
       locCapacityBadge.classList.remove('hidden');
@@ -998,7 +1010,13 @@
       if (myPlayer && myPlayer.cafeId === c.id) count++;
       otherPlayers.forEach(p => { if (p.cafeId === c.id) count++; });
 
-      if (count >= c.max && (!myPlayer || myPlayer.cafeId !== c.id)) {
+      // 본인이 이미 카페 내부 영역에 있는 경우, 나가는 것을 절대 막지 않음 (출입문 갇힘 원천 차단)
+      const isInsideCafe = myPlayer && (
+        myPlayer.cafeId === c.id ||
+        (myPlayer.x >= left && myPlayer.x <= right && myPlayer.y >= top && myPlayer.y <= bottom + 5)
+      );
+
+      if (count >= c.max && !isInsideCafe) {
         list.push({
           type: 'rect',
           x: c.x - doorGapHalf,
@@ -1034,6 +1052,45 @@
       }
     }
     return false;
+  }
+
+  // [끼임/갇힘 자동 탈출 알고리즘]
+  function resolveStuckPosition(player) {
+    if (!player || isAdmin || player.isAdmin) return;
+    if (!isColliding(player.x, player.y)) return;
+
+    // 이미 장애물/벽에 갇혀있는 경우: 가장 가까운 안전 지대로 즉시 밀어냄 (Anti-Stuck Algorithm)
+    const searchDists = [6, 12, 20, 30, 44, 60, 80, 110];
+    const toPlaza = Math.atan2(920 - player.y, 1200 - player.x);
+    const candidateAngles = [
+      toPlaza,
+      toPlaza + Math.PI / 4,
+      toPlaza - Math.PI / 4,
+      toPlaza + Math.PI / 2,
+      toPlaza - Math.PI / 2,
+      toPlaza + (3 * Math.PI) / 4,
+      toPlaza - (3 * Math.PI) / 4,
+      toPlaza + Math.PI
+    ];
+
+    for (const dist of searchDists) {
+      for (const ang of candidateAngles) {
+        const testX = Math.round(player.x + Math.cos(ang) * dist);
+        const testY = Math.round(player.y + Math.sin(ang) * dist);
+        if (!isColliding(testX, testY)) {
+          player.x = testX;
+          player.y = testY;
+          if (tapMove.active) tapMove.active = false;
+          return;
+        }
+      }
+    }
+
+    // 110px 반경 내에 안전 지대가 전혀 없다면 안전한 중앙 광장 안쪽으로 이동
+    player.x = 1200;
+    player.y = 920;
+    player.cafeId = null;
+    if (tapMove.active) tapMove.active = false;
   }
 
   // --- 6. 🎒 인벤토리 & 드래그 앤 드롭 투표함 투입 ---
@@ -1152,6 +1209,23 @@
   // 투표함 근접 퀵 버튼 이벤트
   btnBallotQuickVoteAgree.addEventListener('click', () => submitBallot('agree'));
   btnBallotQuickVoteDisagree.addEventListener('click', () => submitBallot('disagree'));
+
+  // --- 6-1. 🚨 비상 탈출 버튼 (끼임/갇힘 즉시 탈출) ---
+  const btnEmergencyEscape = document.getElementById('btnEmergencyEscape');
+  if (btnEmergencyEscape) {
+    btnEmergencyEscape.addEventListener('click', () => {
+      if (confirm('캐릭터가 끼이거나 갇혀서 움직이지 않나요?\n안전한 중앙 광장으로 즉시 탈출하시겠습니까?')) {
+        if (socket) {
+          socket.emit('emergencyEscape');
+        } else if (myPlayer) {
+          myPlayer.x = 1200;
+          myPlayer.y = 920;
+          myPlayer.cafeId = null;
+          showToast('🚨 중앙 광장으로 탈출했습니다!', 'info');
+        }
+      }
+    });
+  }
 
   // --- 7. 📜 퀘스트 & 미션 시스템 UI ---
   btnQuestToggle.addEventListener('click', () => {
@@ -2310,10 +2384,25 @@
             </div>
           </div>
         </div>
-        <button class="btn-student-kick" data-id="${student.id}" data-name="${escapeHtml(student.nickname)}" title="튕김/중복 학생 퇴장 및 세션 삭제">
-          🗑️ 삭제
-        </button>
+        <div class="admin-student-actions">
+          <button class="btn-student-respawn" data-id="${student.id}" data-name="${escapeHtml(student.nickname)}" title="끼임/갇힘 해결: 학생을 중앙 광장으로 즉시 이동">
+            📍 탈출
+          </button>
+          <button class="btn-student-kick" data-id="${student.id}" data-name="${escapeHtml(student.nickname)}" title="튕김/중복 학생 퇴장 및 세션 삭제">
+            🗑️ 삭제
+          </button>
+        </div>
       `;
+
+      const btnRespawn = row.querySelector('.btn-student-respawn');
+      btnRespawn.addEventListener('click', () => {
+        const targetId = btnRespawn.getAttribute('data-id');
+        const targetName = btnRespawn.getAttribute('data-name');
+        if (socket) {
+          socket.emit('adminSummonStudent', { studentId: targetId });
+          showToast(`'${targetName}' 학생을 중앙 광장으로 탈출/소환했습니다.`, '📍');
+        }
+      });
 
       const btnKick = row.querySelector('.btn-student-kick');
       btnKick.addEventListener('click', () => {
@@ -2837,18 +2926,37 @@
       const stepX = (moveX / len) * speed * dt;
       const stepY = (moveY / len) * speed * dt;
 
-      // 물리 미끄러짐 충돌 판정 (Sliding Collision)
-      const newX = myPlayer.x + stepX;
-      const newY = myPlayer.y + stepY;
+      // 물리 미끄러짐 충돌 판정 (Sliding Collision 개선: 코너 파고들기 원천 차단)
+      const origX = myPlayer.x;
+      const origY = myPlayer.y;
+      const tryX = origX + stepX;
+      const tryY = origY + stepY;
 
-      // X축 단독 이동 검사
-      if (!isColliding(newX, myPlayer.y)) {
-        myPlayer.x = newX;
+      // 1. 대각선 전방 이동 가능 검사
+      if (!isColliding(tryX, tryY)) {
+        myPlayer.x = tryX;
+        myPlayer.y = tryY;
+      } else {
+        // 2. 대각선 충돌 시: X축 및 Y축을 원래 위치(orig) 기준으로 독립 검사하여 미끄러짐 처리
+        const canMoveX = !isColliding(tryX, origY);
+        const canMoveY = !isColliding(origX, tryY);
+
+        if (canMoveX && !canMoveY) {
+          myPlayer.x = tryX;
+        } else if (!canMoveX && canMoveY) {
+          myPlayer.y = tryY;
+        } else if (canMoveX && canMoveY) {
+          // 둘 다 가능할 경우 입력 벡터가 더 큰 축으로 안전하게 미끄러짐
+          if (Math.abs(stepX) >= Math.abs(stepY)) {
+            myPlayer.x = tryX;
+          } else {
+            myPlayer.y = tryY;
+          }
+        }
       }
-      // Y축 단독 이동 검사 (벽을 만나도 비스듬히 미끄러짐)
-      if (!isColliding(myPlayer.x, newY)) {
-        myPlayer.y = newY;
-      }
+
+      // [끼임/갇힘 자동 탈출 알고리즘 적용]
+      resolveStuckPosition(myPlayer);
 
       myPlayer.walkCycle = (myPlayer.walkCycle || 0) + dt * 10;
       myPlayer.isMoving = true;

@@ -511,6 +511,33 @@ html, body {
   padding: 0 2px;
 }
 
+.btn-emergency-escape {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(220, 38, 38, 0.28);
+  border: 1px solid rgba(239, 68, 68, 0.65);
+  color: #fecaca;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 2px 10px rgba(220, 38, 38, 0.3);
+  user-select: none;
+}
+
+.btn-emergency-escape:hover {
+  background: rgba(220, 38, 38, 0.75);
+  color: #ffffff;
+  border-color: #f87171;
+  box-shadow: 0 0 14px rgba(239, 68, 68, 0.7);
+  transform: translateY(-1px);
+}
+
 .btn-sound {
   pointer-events: auto;
   width: 48px;
@@ -2327,6 +2354,31 @@ body.teacher-laptop-mode .quick-reaction-zone {
 .meta-vote-tag.agree { color: #10b981; }
 .meta-vote-tag.disagree { color: #ef4444; }
 .meta-vote-tag.undecided { color: #64748b; }
+
+.admin-student-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-student-respawn {
+  background: rgba(59, 130, 246, 0.22);
+  border: 1px solid #3b82f6;
+  color: #93c5fd;
+  border-radius: 8px;
+  padding: 5px 9px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.btn-student-respawn:hover, .btn-student-respawn:active {
+  background: #3b82f6;
+  color: #ffffff;
+  transform: scale(1.05);
+}
 
 .btn-student-kick {
   background: rgba(239, 68, 68, 0.2);
