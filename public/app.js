@@ -1142,8 +1142,8 @@
     }
 
     // 미션 3
-    questTalkCountBadge.textContent = `${q.m3 || 0}/2회`;
-    if (q.m3 >= 2) {
+    questTalkCountBadge.textContent = `${q.m3 || 0}/3회`;
+    if (q.m3 >= 3) {
       questItem3.classList.add('done');
       questItem3.querySelector('.quest-status-icon').textContent = '✅';
       count++;

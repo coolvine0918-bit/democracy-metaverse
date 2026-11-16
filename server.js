@@ -224,7 +224,7 @@ function getQuestProgressSummary() {
       let completedCount = 0;
       if (q.m1) completedCount++;
       if (q.m2) completedCount++;
-      if (q.m3 >= 2) completedCount++;
+      if (q.m3 >= 3) completedCount++;
       if (q.m4) completedCount++;
 
       list.push({
@@ -558,11 +558,11 @@ io.on('connection', (socket) => {
     player.speechUntil = now + 4000;
     player.statusEmoji = '💬';
 
-    if (player.cafeId !== null && player.quest.m3 < 2) {
+    if (player.cafeId !== null && player.quest.m3 < 3) {
       player.quest.m3++;
       socket.emit('questUpdated', {
         quest: player.quest,
-        message: `[미션 3 소회의실 토론] 발언 완료 (${player.quest.m3}/2회)!`
+        message: `[미션 3 소회의실 토론] 발언 완료 (${player.quest.m3}/3회)!`
       });
       checkBadgeAward(player, socket);
       io.emit('questProgressUpdated', getQuestProgressSummary());
@@ -773,12 +773,12 @@ io.on('connection', (socket) => {
     player.inventory.splice(coffeeIndex, 1); // 1개 소모
 
     let m3Bonus = false;
-    if (player.quest.m3 < 2) {
+    if (player.quest.m3 < 3) {
       player.quest.m3++;
       m3Bonus = true;
       socket.emit('questUpdated', {
         quest: player.quest,
-        message: `☕ 커피의 힘! [미션 3 소회의실 토론] 보너스 가산점 +1회 달성 (${player.quest.m3}/2회)!`
+        message: `☕ 커피의 힘! [미션 3 소회의실 토론] 보너스 가산점 +1회 달성 (${player.quest.m3}/3회)!`
       });
       checkBadgeAward(player, socket);
       io.emit('questProgressUpdated', getQuestProgressSummary());
@@ -954,7 +954,7 @@ io.on('connection', (socket) => {
   function checkBadgeAward(player, pSocket) {
     if (player.hasBadge) return;
     const q = player.quest;
-    if (q.m1 && q.m2 && q.m3 >= 2 && q.m4) {
+    if (q.m1 && q.m2 && q.m3 >= 3 && q.m4) {
       player.hasBadge = true;
       player.inventory.push({
         id: 'citizen_badge',
